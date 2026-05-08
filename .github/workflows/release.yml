@@ -64,35 +64,12 @@ jobs:
             "Release/Aurakey-${{ steps.get_version.outputs.version }}.zip" \
             "${{ secrets.SPARKLE_PRIVATE_KEY }}"
 
-      - name: Prepare Pages artifact
-        run: |
-          mkdir -p _site
-          cp appcast.xml _site/
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             Release/Aurakey-${{ steps.get_version.outputs.version }}.zip
+            appcast.xml
           generate_release_notes: true
 
-  deploy-appcast:
-    name: Deploy appcast to GitHub Pages
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
