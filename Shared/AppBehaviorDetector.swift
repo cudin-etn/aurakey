@@ -1,9 +1,9 @@
 //
 //  AppBehaviorDetector.swift
-//  XKey
+//  Aurakey
 //
 //  Shared module for detecting app-specific behaviors
-//  Used by both XKey (CGEvent) and XKeyIM (IMKit) to apply appropriate workarounds
+//  Used by Aurakey to apply app-specific workarounds
 //
 
 import Cocoa
@@ -213,8 +213,8 @@ struct MergedRuleResult {
     /// Enable AXManualAccessibility for Electron/Chromium apps
     var enableForceAccessibility: Bool?
     
-    /// Target input source ID to switch to when rule matches (nil = use XKey/current)
-    /// When set, XKey will automatically switch to this input source when the rule matches
+    /// Target input source ID to switch to when rule matches (nil = use Aurakey/current)
+    /// When set, Aurakey will automatically switch to this input source when the rule matches
     var targetInputSourceId: String?
     
     /// Combined description from all rules
@@ -309,12 +309,12 @@ struct WindowTitleRule: Codable, Identifiable {
     let textSendingMethod: TextSendingMethod?
     
     /// Override: Enable AXManualAccessibility for Electron/Chromium apps
-    /// When enabled, XKey will set AXManualAccessibility = true when this app is focused
+    /// When enabled, Aurakey will set AXManualAccessibility = true when this app is focused
     /// This helps retrieve more detailed text info from Electron apps (VS Code, Slack, etc.)
     let enableForceAccessibility: Bool?
     
     /// Override: Target input source to switch to when rule matches
-    /// When set, XKey will automatically switch to this input source when the rule matches
+    /// When set, Aurakey will automatically switch to this input source when the rule matches
     /// Example: "com.apple.keylayout.ABC" for US English, "com.apple.keylayout.French" for French
     let targetInputSourceId: String?
     
@@ -597,7 +597,7 @@ class AppBehaviorDetector {
     
     // MARK: - Dependency Injection
     
-    /// Callback to get visible overlay app name (injected by XKey app)
+    /// Callback to get visible overlay app name (injected by Aurakey app)
     /// Used to detect Spotlight/Raycast/Alfred without direct dependency on OverlayAppDetector
     /// Returns overlay app name ("Spotlight", "Raycast", "Alfred") or nil if no overlay visible
     var overlayAppNameProvider: (() -> String?)?
@@ -690,11 +690,19 @@ class AppBehaviorDetector {
     }
     
     // MARK: - Cache (only for detect() which is used for UI display)
-    // Note: detectInjectionMethod(), findMatchingRule(), and detectIMKitBehavior() 
-    // don't use cache to ensure fresh detection on every keystroke
+    // detect() cache is bundle-only because UI behavior does not need focus-level detail.
 
     private var cachedBundleId: String?
     private var cachedBehavior: AppBehavior?
+
+    // MARK: - Injection Method Cache
+    // Hot-path cache for typing. Key includes bundle ID + focused element signature so
+    // focus changes inside the same app re-detect safely, while repeated keystrokes reuse
+    // the last method without extra AX/rule work.
+
+    private var cachedInjectionBundleId: String?
+    private var cachedInjectionFocusSignature: String?
+    private var cachedInjectionMethod: InjectionMethodInfo?
     
     // MARK: - Window Title Rules
     
@@ -718,10 +726,10 @@ class AppBehaviorDetector {
             useMarkedText: false,
             hasMarkedTextIssues: true,
             commitDelay: 5000,
-            injectionMethod: .slow,
-            injectionDelays: [5000, 10000, 8000],
-            textSendingMethod: .oneByOne,
-            description: "Google Docs (all browsers) - one-by-one text sending"
+            injectionMethod: .fast,
+            injectionDelays: [1000, 3000, 1500],
+            textSendingMethod: .chunked,
+            description: "Google Docs (all browsers) - fast chunked text sending"
         ),
         
         // Google Sheets (all browsers, English + Vietnamese UI)
@@ -747,7 +755,7 @@ class AppBehaviorDetector {
         // ============================================
         
         // Telegram Web's emoji suggestion popup intercepts keydown events,
-        // causing Vietnamese text loss when XKey sends replacement text via CGEvent.
+        // causing Vietnamese text loss when Aurakey sends replacement text via CGEvent.
         // Slow + oneByOne bypasses this by giving popup time to process each character.
         WindowTitleRule(
             name: "Telegram Web",
@@ -1269,6 +1277,7 @@ class AppBehaviorDetector {
         cachedAddressBarBundleId = bundleId
         return info
     }
+
     
     /// Check if focused element is Dia Browser's address bar (Command Bar)
     /// Detection via AX Identifier: "commandBarTextField"
@@ -1299,12 +1308,20 @@ class AppBehaviorDetector {
     func clearCache() {
         cachedBundleId = nil
         cachedBehavior = nil
+        clearInjectionMethodCache()
+    }
+
+    /// Clear injection method cache (call when focus/app/rule context changes)
+    func clearInjectionMethodCache() {
+        cachedInjectionBundleId = nil
+        cachedInjectionFocusSignature = nil
+        cachedInjectionMethod = nil
     }
     
     // MARK: - Window Title Detection
     
     /// Get current window title using Accessibility API
-    /// Note: Requires Accessibility permission (which XKey already has)
+    /// Note: Requires Accessibility permission (which Aurakey already has)
     func getCurrentWindowTitle() -> String? {
         guard let app = NSWorkspace.shared.frontmostApplication else {
             return nil
@@ -1631,7 +1648,7 @@ class AppBehaviorDetector {
             return .terminal
         }
         
-        // Priority 1: Check overlay launcher via injected provider (from OverlayAppDetector in XKey)
+        // Priority 1: Check overlay launcher via injected provider (from OverlayAppDetector in Aurakey)
         // This detects Spotlight/Raycast/Alfred more accurately when user is focused on search field
         if let overlayName = overlayAppNameProvider?() {
             if overlayName == "Spotlight" {
@@ -1831,6 +1848,13 @@ class AppBehaviorDetector {
         // This avoids redundant AX API calls (~10 calls saved per focus change)
         let focusedInfo = focusedInfo ?? getFocusedElementInfo()
         let currentRole = focusedInfo.role
+        let focusSignature = focusedInfo.signature
+
+        if cachedInjectionBundleId == bundleId,
+           cachedInjectionFocusSignature == focusSignature,
+           let cachedInjectionMethod {
+            return cachedInjectionMethod
+        }
 
         // Priority 0.2: Terminal panels in VSCode/Cursor/etc
         // Check directly via AX Description - doesn't go through overlay detection if it's a terminal panel (VSCode/Cursor)
@@ -1995,8 +2019,13 @@ class AppBehaviorDetector {
         }
 
         // Priority 2: Fall back to bundle ID based detection
-        return getInjectionMethod(for: bundleId, role: currentRole, info: focusedInfo)
+        let methodInfo = getInjectionMethod(for: bundleId, role: currentRole, info: focusedInfo)
+        cachedInjectionBundleId = bundleId
+        cachedInjectionFocusSignature = focusSignature
+        cachedInjectionMethod = methodInfo
+        return methodInfo
     }
+
     
     /// Get default delays for an injection method
     /// Uses the centralized defaultDelays property on InjectionMethod

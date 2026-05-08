@@ -1,0 +1,93 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    name: Build Aurakey
+    runs-on: macos-15
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      build: ${{ steps.get_version.outputs.build }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          TAG=${GITHUB_REF#refs/tags/v}
+          VERSION=${TAG}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "build=${GITHUB_RUN_NUMBER}" >> $GITHUB_OUTPUT
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Build Aurakey
+        run: |
+          xcodebuild -project Aurakey.xcodeproj \
+            -scheme Aurakey \
+            -configuration Release \
+            -derivedDataPath ./build \
+            -arch arm64 \
+            ONLY_ACTIVE_ARCH=NO \
+            PRODUCT_BUNDLE_IDENTIFIER=com.tdev.Aurakey \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Prepare .app
+        run: |
+          mkdir -p Release
+          cp -R "./build/Build/Products/Release/Aurakey.app" Release/
+          # Ad-hoc sign so it can run (identifier needed for Accessibility permissions)
+          codesign --force --sign - --identifier "com.tdev.Aurakey" Release/Aurakey.app
+
+      - name: Create zip
+        run: |
+          cd Release
+          ditto -c -k --keepParent Aurakey.app "Aurakey-${{ steps.get_version.outputs.version }}.zip"
+          echo "ZIP_SIZE=$(stat -f%z 'Aurakey-${{ steps.get_version.outputs.version }}.zip')" >> $GITHUB_ENV
+
+      - name: Sign with Sparkle
+        run: |
+          swift .github/scripts/update_appcast.swift \
+            "${{ steps.get_version.outputs.version }}" \
+            "${{ steps.get_version.outputs.build }}" \
+            "Release/Aurakey-${{ steps.get_version.outputs.version }}.zip" \
+            "${{ secrets.SPARKLE_PRIVATE_KEY }}"
+
+      - name: Upload appcast to Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: appcast.xml
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Release/Aurakey-${{ steps.get_version.outputs.version }}.zip
+          generate_release_notes: true
+
+  deploy-appcast:
+    name: Deploy appcast to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

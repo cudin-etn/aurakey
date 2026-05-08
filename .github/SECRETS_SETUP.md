@@ -1,4 +1,4 @@
-# 🔐 GitHub Secrets Setup for XKey Build & Release
+# 🔐 GitHub Secrets Setup for Aurakey Build & Release
 
 Để sử dụng GitHub Actions workflow `build-release.yml`, bạn cần thiết lập các secrets sau trong repository settings.
 
@@ -35,7 +35,7 @@ App-specific password.
 1. Đăng nhập https://appleid.apple.com/
 2. Vào **Sign-In and Security** → **App-Specific Passwords**
 3. Click **Generate an app-specific password**
-4. Đặt tên: `GitHub Actions` hoặc `XKey CI`
+4. Đặt tên: `GitHub Actions` hoặc `Aurakey CI`
 5. Copy password (format: `xxxx-xxxx-xxxx-xxxx`)
 
 #### `APPLE_TEAM_ID`
@@ -63,7 +63,7 @@ security find-generic-password -s "https://sparkle-project.org" -a "ed25519" -w
 
 ## Cách thêm Secrets vào GitHub
 
-1. Vào repository: https://github.com/xmannv/xkey
+1. Vào repository: https://github.com/cudin/aurakey
 2. Click **Settings** → **Secrets and variables** → **Actions**
 3. Click **New repository secret**
 4. Thêm từng secret với name và value tương ứng
@@ -88,7 +88,7 @@ security find-generic-password -s "https://sparkle-project.org" -a "ed25519" -w
 Sau khi thiết lập secrets, bạn có thể chạy workflow:
 
 1. Vào **Actions** tab
-2. Chọn workflow **Build and Release XKey**
+2. Chọn workflow **Build and Release Aurakey**
 3. Click **Run workflow**
 4. Chọn các options:
    - **Enable Apple Notarization**: `true` để notarize (khuyến nghị cho release)

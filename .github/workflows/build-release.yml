@@ -1,4 +1,4 @@
-name: Build and Release XKey
+name: Build and Release Aurakey
 
 on:
   workflow_dispatch:
@@ -23,11 +23,10 @@ permissions:
   actions: write
 
 env:
-  BUNDLE_ID: com.codetay.XKey
-  XKEYIM_BUNDLE_ID: com.codetay.inputmethod.XKey
-  APP_NAME: XKey
-  DMG_NAME: XKey.dmg
-  DMG_VOLUME_NAME: XKey
+  BUNDLE_ID: com.tdev.Aurakey
+  APP_NAME: Aurakey
+  DMG_NAME: Aurakey.dmg
+  DMG_VOLUME_NAME: Aurakey
   SPARKLE_VERSION: "2.8.1"
 
 jobs:
@@ -42,7 +41,7 @@ jobs:
 
       - name: Setup Environment
         run: |
-          echo "🚀 Building XKey (Release configuration)"
+          echo "🚀 Building Aurakey (Release configuration)"
           echo "📦 Build Mode: Full Release"
           echo "   ✅ Code signing"
           echo "   ✅ Notarization: ${{ inputs.enable_notarize }}"
@@ -103,18 +102,18 @@ jobs:
           rm -f $RUNNER_TEMP/certificate.p12
 
       # ============================================
-      # Build XKey (Universal Binary)
+      # Build Aurakey (Universal Binary)
       # ============================================
-      - name: Build XKey (Universal Binary)
+      - name: Build Aurakey (Universal Binary)
         run: |
           echo "🔨 Building Universal Binary (Intel + Apple Silicon)..."
           
           # Clean previous build
-          xcodebuild -project XKey.xcodeproj -scheme XKey -configuration Release -derivedDataPath ./build clean
+          xcodebuild -project Aurakey.xcodeproj -scheme Aurakey -configuration Release -derivedDataPath ./build clean
           
           # Build with code signing (Manual style for Developer ID)
-          xcodebuild -project XKey.xcodeproj \
-            -scheme XKey \
+          xcodebuild -project Aurakey.xcodeproj \
+            -scheme Aurakey \
             -configuration Release \
             -derivedDataPath ./build \
             -arch x86_64 -arch arm64 \
@@ -128,35 +127,9 @@ jobs:
             OTHER_CODE_SIGN_FLAGS="--timestamp --options=runtime" \
             build
           
-          echo "✅ XKey built successfully"
+          echo "✅ Aurakey built successfully"
 
-      # ============================================
-      # Build XKeyIM (Input Method Kit)
-      # ============================================
-      - name: Build XKeyIM (Universal Binary)
-        run: |
-          echo "🔨 Building XKeyIM (Input Method)..."
-          
-          if xcodebuild -project XKey.xcodeproj -list 2>/dev/null | grep -q "XKeyIM"; then
-            xcodebuild -project XKey.xcodeproj \
-              -scheme XKeyIM \
-              -configuration Release \
-              -derivedDataPath ./build \
-              -arch x86_64 -arch arm64 \
-              ONLY_ACTIVE_ARCH=NO \
-              PRODUCT_BUNDLE_IDENTIFIER="$XKEYIM_BUNDLE_ID" \
-              CODE_SIGN_STYLE=Manual \
-              CODE_SIGN_IDENTITY="$DEVELOPER_ID" \
-              DEVELOPMENT_TEAM="$TEAM_ID" \
-              CODE_SIGNING_REQUIRED=YES \
-              CODE_SIGNING_ALLOWED=YES \
-              OTHER_CODE_SIGN_FLAGS="--timestamp --options=runtime" \
-              build
-            
-            echo "✅ XKeyIM built successfully"
-          else
-            echo "⚠️ XKeyIM target not found in Xcode project, skipping..."
-          fi
+
 
       # ============================================
       # Prepare Release Directory
@@ -165,27 +138,10 @@ jobs:
         run: |
           mkdir -p Release
           
-          # Copy XKey.app
-          echo "📦 Copying XKey.app to Release..."
-          rm -rf Release/XKey.app
-          cp -R "./build/Build/Products/Release/XKey.app" Release/
-          
-          # Copy XKeyIM.app
-          if [ -d "./build/Build/Products/Release/XKeyIM.app" ]; then
-            echo "📦 Copying XKeyIM.app to Release..."
-            rm -rf Release/XKeyIM.app
-            cp -R "./build/Build/Products/Release/XKeyIM.app" Release/
-            
-            # Ensure menu icon is present
-            if [ -f "XKeyIM/MenuIcon.pdf" ]; then
-              echo "📎 Adding MenuIcon.pdf to XKeyIM..."
-              cp "XKeyIM/MenuIcon.pdf" "Release/XKeyIM.app/Contents/Resources/"
-            fi
-            
-            # Update display name
-            /usr/libexec/PlistBuddy -c "Set :CFBundleName XKey" "Release/XKeyIM.app/Contents/Info.plist" 2>/dev/null || true
-            /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName XKey" "Release/XKeyIM.app/Contents/Info.plist" 2>/dev/null || true
-          fi
+          # Copy Aurakey.app
+          echo "📦 Copying Aurakey.app to Release..."
+          rm -rf Release/Aurakey.app
+          cp -R "./build/Build/Products/Release/Aurakey.app" Release/
           
           echo "✅ Release directory prepared"
 
@@ -196,7 +152,7 @@ jobs:
         run: |
           echo "🔐 Signing Sparkle framework components..."
           
-          SPARKLE_FW="Release/XKey.app/Contents/Frameworks/Sparkle.framework/Versions/B"
+          SPARKLE_FW="Release/Aurakey.app/Contents/Frameworks/Sparkle.framework/Versions/B"
           
           # Sign XPC Services first (deepest level)
           if [ -d "$SPARKLE_FW/XPCServices/Installer.xpc" ]; then
@@ -222,38 +178,21 @@ jobs:
           fi
           
           # Sign Sparkle.framework
-          if [ -d "Release/XKey.app/Contents/Frameworks/Sparkle.framework" ]; then
+          if [ -d "Release/Aurakey.app/Contents/Frameworks/Sparkle.framework" ]; then
             echo "   Signing Sparkle.framework..."
-            codesign --force --sign "$DEVELOPER_ID" --timestamp --options=runtime "Release/XKey.app/Contents/Frameworks/Sparkle.framework"
+            codesign --force --sign "$DEVELOPER_ID" --timestamp --options=runtime "Release/Aurakey.app/Contents/Frameworks/Sparkle.framework"
           fi
           
           echo "✅ Sparkle framework components signed"
           
-          # Re-sign XKeyIM after Info.plist update
-          if [ -d "Release/XKeyIM.app" ]; then
-            echo "🔐 Signing XKeyIM.app..."
-            codesign --force --sign "$DEVELOPER_ID" --timestamp --options=runtime \
-              --entitlements "XKeyIM/XKeyIMRelease.entitlements" "Release/XKeyIM.app"
-            echo "✅ XKeyIM.app signed"
-          fi
-          
-          # Embed XKeyIM inside XKey.app
-          if [ -d "Release/XKeyIM.app" ]; then
-            echo "📦 Embedding XKeyIM.app inside XKey.app/Contents/Resources..."
-            mkdir -p "Release/XKey.app/Contents/Resources"
-            rm -rf "Release/XKey.app/Contents/Resources/XKeyIM.app"
-            cp -R "Release/XKeyIM.app" "Release/XKey.app/Contents/Resources/"
-            echo "✅ XKeyIM embedded in XKey.app"
-          fi
-          
-          # Re-sign XKey.app after embedding
-          echo "🔐 Signing XKey.app..."
+          # Sign Aurakey.app
+          echo "🔐 Signing Aurakey.app..."
           codesign --force --sign "$DEVELOPER_ID" --timestamp --options=runtime \
-            --entitlements "XKey/XKeyRelease.entitlements" "Release/XKey.app"
+            --entitlements "Aurakey/AurakeyRelease.entitlements" "Release/Aurakey.app"
           
           # Verify signature
-          codesign -vvv --strict Release/XKey.app
-          echo "✅ XKey.app signed and verified"
+          codesign -vvv --strict Release/Aurakey.app
+          echo "✅ Aurakey.app signed and verified"
 
       # ============================================
       # Create DMG
@@ -268,7 +207,7 @@ jobs:
           mkdir -p "$DMG_SOURCE_DIR"
           
           # Copy app to temp directory
-          cp -R "Release/XKey.app" "$DMG_SOURCE_DIR/"
+          cp -R "Release/Aurakey.app" "$DMG_SOURCE_DIR/"
           
           # Create symbolic link to Applications folder
           ln -s /Applications "$DMG_SOURCE_DIR/Applications"
@@ -327,12 +266,12 @@ jobs:
             xcrun stapler staple "Release/$DMG_NAME"
             echo "✅ DMG notarized and stapled"
             
-            xcrun stapler staple "Release/XKey.app"
+            xcrun stapler staple "Release/Aurakey.app"
             echo "✅ App notarized and stapled"
             
             # Verify notarization
             echo "🔍 Verifying notarization..."
-            spctl -a -vvv -t install "Release/XKey.app"
+            spctl -a -vvv -t install "Release/Aurakey.app"
             spctl -a -vvv -t install "Release/$DMG_NAME"
             echo "✅ Notarization verified"
           else
@@ -449,19 +388,11 @@ jobs:
           echo "✅ version.json created"
 
       # ============================================
-      # Cleanup XKeyIM.app (already bundled)
+      # Cleanup build folder
       # ============================================
       - name: Cleanup
         run: |
-          # Remove standalone XKeyIM.app (already bundled in XKey.app)
-          if [ -d "Release/XKeyIM.app" ]; then
-            echo "🧹 Removing standalone XKeyIM.app (already bundled)..."
-            rm -rf "Release/XKeyIM.app"
-          fi
-          
-          # Cleanup build folder
-          rm -rf "./build/Build/Products/Release/XKey.app"
-          rm -rf "./build/Build/Products/Release/XKeyIM.app"
+          rm -rf "./build/Build/Products/Release/Aurakey.app"
           echo "✅ Cleanup complete"
 
       # ============================================
@@ -470,10 +401,10 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: XKey-${{ steps.version.outputs.tag }}
+          name: Aurakey-${{ steps.version.outputs.tag }}
           path: |
-            Release/XKey.dmg
-            Release/XKey.app
+            Release/Aurakey.dmg
+            Release/Aurakey.app
             Release/signature.txt
             Release/version.json
           retention-days: 30
@@ -523,7 +454,7 @@ jobs:
             "Release/$DMG_NAME" \
             "Release/version.json" \
             "Release/signature.txt" \
-            --title "XKey v$CURRENT_VERSION (Build $BUILD_NUMBER)" \
+            --title "Aurakey v$CURRENT_VERSION (Build $BUILD_NUMBER)" \
             --notes-file "Release/release_notes.md"
           
           echo "✅ GitHub Release created: $RELEASE_TAG"
@@ -573,7 +504,7 @@ jobs:
           echo "| GitHub Release | ${{ inputs.enable_github_release }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📦 Artifacts" >> $GITHUB_STEP_SUMMARY
-          echo "- XKey.dmg" >> $GITHUB_STEP_SUMMARY
+          echo "- Aurakey.dmg" >> $GITHUB_STEP_SUMMARY
           echo "- signature.txt (for Sparkle auto-update)" >> $GITHUB_STEP_SUMMARY
           echo "- version.json" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

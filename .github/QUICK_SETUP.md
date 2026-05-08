@@ -2,7 +2,7 @@
 
 ## Bước 1: Enable GitHub Pages
 
-1. Vào repository trên GitHub: `https://github.com/xmannv/xkey`
+1. Vào repository trên GitHub: `https://github.com/cudin/aurakey`
 2. Click **Settings** → **Pages** (menu bên trái)
 3. Trong phần **Source**:
    - Chọn **Deploy from a branch**
@@ -27,11 +27,11 @@ Sau khi workflow chạy xong, kiểm tra:
 
 ```bash
 # Check appcast URL
-curl https://xmannv.github.io/xkey/appcast.json
+curl https://xmannv.github.io/aurakey/appcast.json
 ```
 
 Hoặc mở trực tiếp trong browser:
-👉 https://xmannv.github.io/xkey/appcast.json
+👉 https://xmannv.github.io/aurakey/appcast.json
 
 ## Bước 4: Test Update trong App
 
@@ -66,7 +66,7 @@ Kiểm tra:
 
 Script giữ nguyên signature từ file cũ. Để thêm signature cho release mới:
 
-1. Sign DMG: `./sparkle_tools.sh sign Release/XKey.dmg`
+1. Sign DMG: `./sparkle_tools.sh sign Release/Aurakey.dmg`
 2. Copy signature
 3. Sau khi workflow chạy, update `appcast.json` trên `gh-pages` branch thủ công (hoặc tích hợp vào build script)
 

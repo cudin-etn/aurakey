@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Build Release version of XKey with Developer ID code signing
-# Output will be copied to ./Release/XKey.app and ./Release/XKey.dmg
+# Build Release version of Aurakey with Developer ID code signing
+# Output will be copied to ./Release/Aurakey.app and ./Release/Aurakey.dmg
 
 set -e  # Exit on error
 
@@ -15,9 +15,6 @@ fi
 ENABLE_CODESIGN=${ENABLE_CODESIGN:-true}  # Set to false to disable code signing
 ENABLE_NOTARIZE=${ENABLE_NOTARIZE:-false}  # Set to true to enable notarization
 ENABLE_DMG=${ENABLE_DMG:-true}  # Set to false to skip DMG creation
-ENABLE_XKEYIM=${ENABLE_XKEYIM:-true}  # Set to false to skip XKeyIM build
-ENABLE_XKEYIM_BUNDLE=${ENABLE_XKEYIM_BUNDLE:-true}  # Set to false to skip bundling XKeyIM inside XKey.app
-
 # Smart defaults: If notarizing, assume it's a full release
 if [ "$ENABLE_NOTARIZE" = true ]; then
     # Auto-enable Sparkle signing for notarized releases
@@ -30,12 +27,11 @@ else
     ENABLE_GITHUB_RELEASE=${ENABLE_GITHUB_RELEASE:-false}
 fi
 
-BUNDLE_ID="com.codetay.XKey"
-XKEYIM_BUNDLE_ID="com.codetay.inputmethod.XKey"
-APP_NAME="XKey"
-DMG_NAME="XKey.dmg"
-DMG_VOLUME_NAME="XKey"
-REPO_URL="https://github.com/xmannv/xkey"
+BUNDLE_ID="com.tdev.Aurakey"
+APP_NAME="Aurakey"
+DMG_NAME="Aurakey.dmg"
+DMG_VOLUME_NAME="Aurakey"
+REPO_URL="https://github.com/cudin/aurakey"
 SPARKLE_BIN="/tmp/Sparkle-2.9.0/bin"
 
 # Read version from Version.xcconfig (centralized version management)
@@ -49,7 +45,7 @@ else
 fi
 
 
-echo "🚀 Building XKey (Release configuration)..."
+echo "🚀 Building Aurakey (Release configuration)..."
 
 # Show build mode
 if [ "$ENABLE_NOTARIZE" = true ]; then
@@ -57,13 +53,11 @@ if [ "$ENABLE_NOTARIZE" = true ]; then
     echo "   ✅ Code signing"
     echo "   ✅ Notarization"
     echo "   ✅ Sparkle signing"
-    echo "   ✅ XKeyIM bundled in XKey.app"
     [ "$ENABLE_GITHUB_RELEASE" = true ] && echo "   ✅ GitHub Release (auto-create)"
 else
     echo "🔨 Development Build Mode"
     [ "$ENABLE_CODESIGN" = true ] && echo "   ✅ Code signing" || echo "   ⚠️  Code signing disabled"
     [ "$ENABLE_SPARKLE_SIGN" = true ] && echo "   ✅ Sparkle signing" || echo "   ⚠️  Sparkle signing disabled"
-    [ "$ENABLE_XKEYIM_BUNDLE" = true ] && echo "   ✅ XKeyIM bundled in XKey.app" || echo "   ⏭️  XKeyIM separate build"
     [ "$ENABLE_GITHUB_RELEASE" = true ] && echo "   ✅ GitHub Release (auto-create)" || echo "   ⏭️  Manual release"
 fi
 echo ""
@@ -96,15 +90,15 @@ fi
 
 # Clean previous build
 echo "🧹 Cleaning previous build..."
-xcodebuild -project XKey.xcodeproj -scheme XKey -configuration Release -derivedDataPath ./build clean
+xcodebuild -project Aurakey.xcodeproj -scheme Aurakey -configuration Release -derivedDataPath ./build clean
 
 # Build with or without code signing
 echo "🔨 Building Universal Binary (Intel + Apple Silicon)..."
 
 if [ "$ENABLE_CODESIGN" = true ]; then
     echo "🔐 Code signing enabled with: $DEVELOPER_ID"
-    xcodebuild -project XKey.xcodeproj \
-      -scheme XKey \
+    xcodebuild -project Aurakey.xcodeproj \
+      -scheme Aurakey \
       -configuration Release \
       -derivedDataPath ./build \
       -arch x86_64 -arch arm64 \
@@ -118,8 +112,8 @@ if [ "$ENABLE_CODESIGN" = true ]; then
       build
 else
     echo "⚠️  Code signing disabled"
-    xcodebuild -project XKey.xcodeproj \
-      -scheme XKey \
+    xcodebuild -project Aurakey.xcodeproj \
+      -scheme Aurakey \
       -configuration Release \
       -derivedDataPath ./build \
       -arch x86_64 -arch arm64 \
@@ -133,15 +127,15 @@ else
 fi
 
 # Copy to Release directory
-echo "📦 Copying to ./Release/XKey.app..."
-rm -rf Release/XKey.app
-cp -R "./build/Build/Products/Release/XKey.app" Release/
+echo "📦 Copying to ./Release/Aurakey.app..."
+rm -rf Release/Aurakey.app
+cp -R "./build/Build/Products/Release/Aurakey.app" Release/
 
 # Sign Sparkle framework's nested components (IMPORTANT: must be done before signing main app)
 if [ "$ENABLE_CODESIGN" = true ]; then
     echo "🔐 Signing Sparkle framework components..."
     
-    SPARKLE_FW="Release/XKey.app/Contents/Frameworks/Sparkle.framework/Versions/B"
+    SPARKLE_FW="Release/Aurakey.app/Contents/Frameworks/Sparkle.framework/Versions/B"
     
     # Sign XPC Services first (deepest level)
     if [ -d "$SPARKLE_FW/XPCServices/Installer.xpc" ]; then
@@ -183,187 +177,56 @@ if [ "$ENABLE_CODESIGN" = true ]; then
     fi
     
     # Finally, sign the entire Sparkle.framework
-    if [ -d "Release/XKey.app/Contents/Frameworks/Sparkle.framework" ]; then
+    if [ -d "Release/Aurakey.app/Contents/Frameworks/Sparkle.framework" ]; then
         echo "   Signing Sparkle.framework..."
         codesign --force --sign "$DEVELOPER_ID" \
             --timestamp \
             --options=runtime \
-            "Release/XKey.app/Contents/Frameworks/Sparkle.framework"
+            "Release/Aurakey.app/Contents/Frameworks/Sparkle.framework"
         echo "   ✅ Sparkle.framework signed"
     fi
     
     echo "✅ Sparkle framework components signed"
 fi
 
-# Re-sign XKey.app after modifying nested frameworks
+# Re-sign Aurakey.app after modifying nested frameworks
 if [ "$ENABLE_CODESIGN" = true ]; then
-    echo "🔐 Re-signing XKey.app after framework modifications..."
+    echo "🔐 Re-signing Aurakey.app after framework modifications..."
     codesign --force --sign "$DEVELOPER_ID" \
         --timestamp \
         --options=runtime \
-        --entitlements "XKey/XKeyRelease.entitlements" \
-        Release/XKey.app
-    echo "✅ XKey.app re-signed"
+        --entitlements "Aurakey/AurakeyRelease.entitlements" \
+        Release/Aurakey.app
+    echo "✅ Aurakey.app re-signed"
 else
     # Ad-hoc sign with correct identifier (required for Accessibility permissions)
     # IMPORTANT: Include entitlements to preserve App Group for data sharing
     echo "🔐 Ad-hoc signing with correct bundle identifier..."
-    codesign --force --sign - --identifier "$BUNDLE_ID" --entitlements "XKey/XKeyRelease.entitlements" Release/XKey.app
+    codesign --force --sign - --identifier "$BUNDLE_ID" --entitlements "Aurakey/AurakeyRelease.entitlements" Release/Aurakey.app
     echo "✅ Ad-hoc signed with identifier: $BUNDLE_ID"
 fi
 
 # Verify code signature
 echo "🔍 Verifying code signature..."
-codesign -vvv --strict Release/XKey.app
+codesign -vvv --strict Release/Aurakey.app
 echo "✅ Code signature verified"
 
 # Display signature info
 echo ""
 echo "📝 Signature details:"
-codesign -dvvv Release/XKey.app 2>&1 | grep -E "(Authority|Identifier|TeamIdentifier|Timestamp)"
+codesign -dvvv Release/Aurakey.app 2>&1 | grep -E "(Authority|Identifier|TeamIdentifier|Timestamp)"
 
 
-# ============================================
-# Build XKeyIM (Input Method Kit)
-# ============================================
-if [ "$ENABLE_XKEYIM" = true ]; then
-    echo ""
-    echo "🔨 Building XKeyIM (Input Method)..."
-    
-    # Check if XKeyIM scheme exists
-    if xcodebuild -project XKey.xcodeproj -list 2>/dev/null | grep -q "XKeyIM"; then
-        
-        if [ "$ENABLE_CODESIGN" = true ]; then
-            xcodebuild -project XKey.xcodeproj \
-              -scheme XKeyIM \
-              -configuration Release \
-              -derivedDataPath ./build \
-              -arch x86_64 -arch arm64 \
-              ONLY_ACTIVE_ARCH=NO \
-              PRODUCT_BUNDLE_IDENTIFIER="$XKEYIM_BUNDLE_ID" \
-              CODE_SIGN_STYLE=Automatic \
-              DEVELOPMENT_TEAM="$TEAM_ID" \
-              CODE_SIGNING_REQUIRED=YES \
-              CODE_SIGNING_ALLOWED=YES \
-              OTHER_CODE_SIGN_FLAGS="--timestamp --options=runtime" \
-              build
-        else
-            xcodebuild -project XKey.xcodeproj \
-              -scheme XKeyIM \
-              -configuration Release \
-              -derivedDataPath ./build \
-              -arch x86_64 -arch arm64 \
-              ONLY_ACTIVE_ARCH=NO \
-              PRODUCT_BUNDLE_IDENTIFIER="$XKEYIM_BUNDLE_ID" \
-              CODE_SIGN_STYLE=Manual \
-              CODE_SIGN_IDENTITY="-" \
-              CODE_SIGNING_REQUIRED=NO \
-              CODE_SIGNING_ALLOWED=NO \
-              CODE_SIGN_ENTITLEMENTS="XKeyIM/XKeyIMRelease.entitlements" \
-              PROVISIONING_PROFILE_SPECIFIER="" \
-              build
-        fi
-        
-        # Kill running XKeyIM process if it exists
-        echo "🔍 Checking for running XKeyIM process..."
-        if pgrep -x "XKeyIM" > /dev/null; then
-            echo "⚠️  XKeyIM is currently running, killing process..."
-            killall XKeyIM 2>/dev/null || true
-            echo "✅ XKeyIM process killed"
-            # Wait a bit to ensure process is fully terminated
-            sleep 1
-        else
-            echo "✅ No running XKeyIM process found"
-        fi
-        
-        # Copy XKeyIM to Release directory
-        echo "📦 Copying XKeyIM.app to Release..."
-        rm -rf Release/XKeyIM.app
-        cp -R "./build/Build/Products/Release/XKeyIM.app" Release/
-
-        # Ensure menu icon is present
-        if [ -f "XKeyIM/MenuIcon.pdf" ]; then
-            echo "📎 Adding MenuIcon.pdf to XKeyIM..."
-            cp "XKeyIM/MenuIcon.pdf" "Release/XKeyIM.app/Contents/Resources/"
-        fi
-
-        # Update display name to "XKey"
-        echo "📝 Updating XKeyIM display name..."
-        /usr/libexec/PlistBuddy -c "Set :CFBundleName XKey" "Release/XKeyIM.app/Contents/Info.plist" 2>/dev/null || true
-        /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName XKey" "Release/XKeyIM.app/Contents/Info.plist" 2>/dev/null || true
-        
-        # Re-sign after modifying Info.plist
-        if [ "$ENABLE_CODESIGN" = true ]; then
-            echo "🔐 Re-signing XKeyIM after Info.plist update..."
-            codesign --force --sign "$DEVELOPER_ID" --timestamp --options=runtime --entitlements "XKeyIM/XKeyIMRelease.entitlements" "Release/XKeyIM.app"
-        else
-            echo "🔐 Ad-hoc signing XKeyIM with entitlements..."
-            codesign --force --sign - --identifier "$XKEYIM_BUNDLE_ID" --entitlements "XKeyIM/XKeyIMRelease.entitlements" Release/XKeyIM.app
-        fi
-        
-        # Verify signature
-        codesign -vvv --strict Release/XKeyIM.app
-        echo "✅ XKeyIM built successfully"
-        
-        # Embed XKeyIM inside XKey.app for easy installation (optional)
-        if [ "$ENABLE_XKEYIM_BUNDLE" = true ]; then
-            echo "📦 Embedding XKeyIM.app inside XKey.app/Contents/Resources..."
-            mkdir -p "Release/XKey.app/Contents/Resources"
-            rm -rf "Release/XKey.app/Contents/Resources/XKeyIM.app"
-            cp -R "Release/XKeyIM.app" "Release/XKey.app/Contents/Resources/"
-            echo "✅ XKeyIM embedded in XKey.app"
-
-            # Re-sign XKey.app after embedding XKeyIM (IMPORTANT: embedding modifies sealed resources)
-            # IMPORTANT: Must include --entitlements to preserve App Group for data sharing
-            echo "🔐 Re-signing XKey.app after embedding XKeyIM..."
-            if [ "$ENABLE_CODESIGN" = true ]; then
-                codesign --force --sign "$DEVELOPER_ID" --timestamp --options=runtime --entitlements "XKey/XKeyRelease.entitlements" "Release/XKey.app"
-            else
-                codesign --force --sign - --identifier "$BUNDLE_ID" --entitlements "XKey/XKeyRelease.entitlements" "Release/XKey.app"
-            fi
-
-            # Verify XKey.app signature after re-signing
-            echo "🔍 Verifying XKey.app signature after embedding..."
-            codesign -vvv --strict Release/XKey.app
-            echo "✅ XKey.app signature verified"
-        else
-            echo "⏭️  Skipping XKeyIM embedding (ENABLE_XKEYIM_BUNDLE=false)"
-        fi
-
-        
-        # Auto-install XKeyIM to user's Input Methods
-        echo ""
-        echo "📲 Installing XKeyIM to ~/Library/Input Methods/..."
-        mkdir -p ~/Library/Input\ Methods/
-        
-        # Kill XKeyIM process again before installing (in case it was restarted)
-        if pgrep -x "XKeyIM" > /dev/null; then
-            echo "🔄 Killing XKeyIM process before installation..."
-            killall XKeyIM 2>/dev/null || true
-            sleep 1
-        fi
-        
-        # Copy to Input Methods
-        rm -rf ~/Library/Input\ Methods/XKeyIM.app
-        cp -R "Release/XKeyIM.app" ~/Library/Input\ Methods/
-        echo "✅ XKeyIM installed to ~/Library/Input Methods/"
-        echo "   New version will load automatically on next use"
-
-    else
-        echo "⚠️  XKeyIM target not found in Xcode project, skipping..."
-    fi
-fi
 
 # ============================================
 # Cleanup build folder
 # ============================================
 # IMPORTANT: Remove built apps from build folder to prevent LaunchServices
-# from finding duplicate versions when opening XKey from XKeyIM menu
+# from finding duplicate versions
 echo ""
 echo "🧹 Cleaning up build folder..."
-rm -rf "./build/Build/Products/Release/XKey.app"
-rm -rf "./build/Build/Products/Release/XKeyIM.app"
-echo "✅ Build folder cleaned (prevents duplicate app versions)"
+rm -rf "./build/Build/Products/Release/Aurakey.app"
+echo "✅ Build folder cleaned"
 
 
 # ============================================
@@ -379,7 +242,7 @@ if [ "$ENABLE_DMG" = true ]; then
     mkdir -p "$DMG_SOURCE_DIR"
     
     # Copy app to temp directory
-    cp -R "Release/XKey.app" "$DMG_SOURCE_DIR/"
+    cp -R "Release/Aurakey.app" "$DMG_SOURCE_DIR/"
     
     # Create symbolic link to Applications folder
     ln -s /Applications "$DMG_SOURCE_DIR/Applications"
@@ -409,15 +272,6 @@ if [ "$ENABLE_DMG" = true ]; then
     echo "✅ DMG created: Release/$DMG_NAME"
 fi
 
-# ============================================
-# Cleanup XKeyIM.app after bundling
-# ============================================
-if [ "$ENABLE_XKEYIM" = true ] && [ "$ENABLE_XKEYIM_BUNDLE" = true ] && [ -d "Release/XKeyIM.app" ]; then
-    echo ""
-    echo "🧹 Cleaning up XKeyIM.app (already bundled in XKey.app)..."
-    rm -rf "Release/XKeyIM.app"
-    echo "✅ XKeyIM.app removed"
-fi
 
 # ============================================
 # Notarization
@@ -445,8 +299,8 @@ if [ "$ENABLE_NOTARIZE" = true ] && [ "$ENABLE_CODESIGN" = true ]; then
     else
         # Create a zip for notarization if DMG is not available
         echo "📦 Creating zip for notarization..."
-        NOTARIZE_TARGET="Release/XKey.zip"
-        ditto -c -k --keepParent "Release/XKey.app" "$NOTARIZE_TARGET"
+        NOTARIZE_TARGET="Release/Aurakey.zip"
+        ditto -c -k --keepParent "Release/Aurakey.app" "$NOTARIZE_TARGET"
     fi
     
     # Submit for notarization and capture output
@@ -494,18 +348,18 @@ if [ "$ENABLE_NOTARIZE" = true ] && [ "$ENABLE_CODESIGN" = true ]; then
         fi
         
         # Also staple the app
-        xcrun stapler staple "Release/XKey.app"
+        xcrun stapler staple "Release/Aurakey.app"
         echo "✅ App notarized and stapled"
         
         # Clean up zip if we created one
-        if [ -f "Release/XKey.zip" ]; then
-            rm -f "Release/XKey.zip"
+        if [ -f "Release/Aurakey.zip" ]; then
+            rm -f "Release/Aurakey.zip"
         fi
         
         # Verify notarization
         echo ""
         echo "🔍 Verifying notarization..."
-        spctl -a -vvv -t install "Release/XKey.app"
+        spctl -a -vvv -t install "Release/Aurakey.app"
         if [ "$ENABLE_DMG" = true ] && [ -f "Release/$DMG_NAME" ]; then
             spctl -a -vvv -t install "Release/$DMG_NAME"
         fi
@@ -617,7 +471,7 @@ if [ "$ENABLE_SPARKLE_SIGN" = true ] && [ "$ENABLE_DMG" = true ] && [ -f "Releas
     # Save signature to file for GitHub release upload
     echo "$SPARKLE_SIGNATURE" > "Release/signature.txt"
     echo "✅ Signature saved to: Release/signature.txt"
-    echo "   ⚠️  IMPORTANT: Upload this file to GitHub Release along with XKey.dmg"
+    echo "   ⚠️  IMPORTANT: Upload this file to GitHub Release along with Aurakey.dmg"
     
     # Export signature for reference
     export SPARKLE_SIGNATURE
@@ -733,7 +587,7 @@ EOF
 
     # Create release
     gh release create "$RELEASE_TAG" $UPLOAD_FILES \
-        --title "XKey v$CURRENT_VERSION (Build $BUILD_NUMBER)" \
+        --title "Aurakey v$CURRENT_VERSION (Build $BUILD_NUMBER)" \
         --notes-file "$RELEASE_NOTES_FILE" \
         --repo "$REPO_URL"
 
@@ -768,24 +622,14 @@ echo "✅ Build successful!"
 
 echo ""
 echo "✅ Done! Release build is ready at:"
-echo "   $(pwd)/Release/XKey.app"
-if [ "$ENABLE_XKEYIM" = true ]; then
-    if [ "$ENABLE_XKEYIM_BUNDLE" = true ]; then
-        echo "   └── XKeyIM.app embedded in XKey.app/Contents/Resources/"
-    elif [ -f "Release/XKeyIM.app" ]; then
-        echo "   $(pwd)/Release/XKeyIM.app"
-    fi
-fi
+echo "   $(pwd)/Release/Aurakey.app"
 if [ "$ENABLE_DMG" = true ]; then
     echo "   $(pwd)/Release/$DMG_NAME"
 fi
 
 echo ""
 echo "📊 App size:"
-du -sh Release/XKey.app
-if [ "$ENABLE_XKEYIM" = true ] && [ "$ENABLE_XKEYIM_BUNDLE" = false ] && [ -f "Release/XKeyIM.app" ]; then
-    du -sh Release/XKeyIM.app
-fi
+du -sh Release/Aurakey.app
 if [ "$ENABLE_DMG" = true ] && [ -f "Release/$DMG_NAME" ]; then
     echo ""
     echo "📀 DMG size:"
@@ -794,7 +638,7 @@ fi
 
 echo ""
 echo "🏗️  Architecture:"
-lipo -info Release/XKey.app/Contents/MacOS/XKey
+lipo -info Release/Aurakey.app/Contents/MacOS/Aurakey
 echo ""
 
 if [ "$ENABLE_CODESIGN" = true ]; then
@@ -826,8 +670,6 @@ echo "💡 Usage:"
 echo "   Default (with code signing + DMG):    ./build_release.sh"
 echo "   Without code signing:                 ENABLE_CODESIGN=false ./build_release.sh"
 echo "   Without DMG:                          ENABLE_DMG=false ./build_release.sh"
-echo "   Without XKeyIM:                       ENABLE_XKEYIM=false ./build_release.sh"
-echo "   Separate XKeyIM build:                ENABLE_XKEYIM_BUNDLE=false ./build_release.sh"
 echo "   With notarization (full release):     ENABLE_NOTARIZE=true ./build_release.sh"
 echo "   Without Sparkle signing:              ENABLE_SPARKLE_SIGN=false ./build_release.sh"
 echo "   With GitHub release:                  ENABLE_GITHUB_RELEASE=true ./build_release.sh"
@@ -847,8 +689,8 @@ if [ "$ENABLE_GITHUB_RELEASE" != true ]; then
     echo "      # Create version.json first:"
     echo "      echo '{\"version\": \"$CURRENT_VERSION\", \"build\": \"$BUILD_NUMBER\"}' > Release/version.json"
     echo ""
-    echo "      gh release create v$CURRENT_VERSION-$BUILD_NUMBER Release/XKey.dmg Release/version.json Release/signature.txt \\"
-    echo "         --title \"XKey v$CURRENT_VERSION (Build $BUILD_NUMBER)\" \\"
+    echo "      gh release create v$CURRENT_VERSION-$BUILD_NUMBER Release/Aurakey.dmg Release/version.json Release/signature.txt \\"
+    echo "         --title \"Aurakey v$CURRENT_VERSION (Build $BUILD_NUMBER)\" \\"
     echo "         --notes \"Your release notes here\""
     echo ""
     echo "   2. Or enable automatic release:"

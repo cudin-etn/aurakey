@@ -1,6 +1,6 @@
 //
 //  AXHelper.swift
-//  XKey
+//  Aurakey
 //
 //  Centralized helper for safe Accessibility API queries.
 //  Wraps raw AXUIElementCopyAttributeValue calls with:

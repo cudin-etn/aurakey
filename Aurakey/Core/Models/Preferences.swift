@@ -1,0 +1,174 @@
+//
+//  Preferences.swift
+//  Aurakey
+//
+//  User preferences and settings
+//
+
+import Foundation
+import Cocoa
+
+enum MenuBarIconStyle: String, Codable, CaseIterable {
+    case aura = "Aura"
+    case v = "V"
+    
+    var displayName: String {
+        switch self {
+        case .aura: return "Aura"
+        case .v: return "Chữ V"
+        }
+    }
+}
+
+
+
+struct Preferences: Codable {
+    // Hotkey settings
+    var toggleHotkey: Hotkey = Hotkey(keyCode: 9, modifiers: [.command, .shift]) // Default: Cmd+Shift+V
+    var undoTypingEnabled: Bool = false          // Enable undo typing with Esc key
+    var undoTypingHotkey: Hotkey?                 // Custom hotkey for undo typing (nil = use Esc)
+    var beepOnToggle: Bool = false               // Play beep sound when toggle Vietnamese
+    
+    // Input settings
+    var inputMethod: InputMethod = .telex
+    var codeTable: CodeTable = .unicode
+    var modernStyle: Bool = false
+    var spellCheckEnabled: Bool = false
+    
+    // Advanced features
+    var quickTelexEnabled: Bool = true           // cc→ch, gg→gi, etc.
+    var quickStartConsonantEnabled: Bool = false // f→ph, j→gi, w→qu
+    var quickEndConsonantEnabled: Bool = false   // g→ng, h→nh, k→ch
+    var upperCaseFirstChar: Bool = false         // Auto capitalize first letter
+    var restoreIfWrongSpelling: Bool = true      // Restore if wrong spelling
+    var instantRestoreOnWrongSpelling: Bool = false // Restore immediately when wrong spelling detected
+    var customConsonantEnabled: Bool = false         // Whether custom consonants feature is enabled
+    var customConsonants: String = "Z,F,W,J"         // Custom consonants list (always stored, even when disabled)
+    
+    /// Default custom consonants when feature is reset
+    static let defaultCustomConsonants = "Z,F,W,J"
+    
+    /// Computed: get individual consonant list from the comma-separated string
+    var customConsonantList: [String] {
+        guard !customConsonants.isEmpty else { return [] }
+        return customConsonants.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces).uppercased() }
+    }
+
+    var tempOffToolbarEnabled: Bool = false      // Show floating toolbar for temp off controls
+    var tempOffToolbarHotkey: Hotkey = Hotkey(keyCode: 0x11, modifiers: [.command, .option])  // Default: Cmd+Option+T
+    var convertToolHotkey: Hotkey = Hotkey(keyCode: 0, modifiers: [])  // Default: disabled (no hotkey)
+
+    // Macro settings
+    var macroEnabled: Bool = false               // Enable text shortcuts
+    var macroInEnglishMode: Bool = false         // Use macro in English mode
+    var autoCapsMacro: Bool = false              // Auto capitalize macro output
+    var addSpaceAfterMacro: Bool = false         // Add space after macro expansion
+    
+    // Smart switch settings
+    var smartSwitchEnabled: Bool = true         // Remember language per app
+
+    
+    // Debug settings
+    var debugModeEnabled: Bool = false           // Show debug window (even in production)
+    var debugHotkey: Hotkey = Hotkey(keyCode: 0x02, modifiers: [.command, .option])  // Default: Cmd+Option+D
+    var openDebugOnLaunch: Bool = false          // Open debug window when app starts
+    
+    
+    // UI settings
+    var startAtLogin: Bool = false
+    var menuBarIconStyle: MenuBarIconStyle = .aura
+    var autoCheckForUpdates: Bool = true
+    
+    // Excluded apps - apps where Vietnamese input is disabled
+    var excludedApps: [ExcludedApp] = []
+    
+}
+
+// MARK: - Excluded App Model
+
+struct ExcludedApp: Codable, Identifiable, Equatable {
+    var id: String { bundleIdentifier }
+    let bundleIdentifier: String
+    let appName: String
+    let appPath: String?
+    
+    init(bundleIdentifier: String, appName: String, appPath: String? = nil) {
+        self.bundleIdentifier = bundleIdentifier
+        self.appName = appName
+        self.appPath = appPath
+    }
+}
+
+struct Hotkey: Codable, Equatable {
+    var keyCode: UInt16
+    var modifiers: ModifierFlags
+    var isModifierOnly: Bool  // True if hotkey is just modifiers (e.g., Ctrl+Shift)
+    
+    init(keyCode: UInt16, modifiers: ModifierFlags, isModifierOnly: Bool = false) {
+        self.keyCode = keyCode
+        self.modifiers = modifiers
+        self.isModifierOnly = isModifierOnly
+    }
+    
+    var displayString: String {
+        var parts: [String] = []
+        
+        // Fn key first (if present)
+        if modifiers.contains(.function) { parts.append("Fn") }
+        if modifiers.contains(.control) { parts.append("⌃") }
+        if modifiers.contains(.option) { parts.append("⌥") }
+        if modifiers.contains(.shift) { parts.append("⇧") }
+        if modifiers.contains(.command) { parts.append("⌘") }
+        
+        // For modifier-only hotkeys (including Fn-only), don't add key character
+        if isModifierOnly {
+            return parts.joined()
+        }
+        
+        // Convert keyCode to character
+        if let char = keyCodeToCharacter(keyCode) {
+            parts.append(char.uppercased())
+        } else if keyCode != 0 {
+            parts.append("?")
+        }
+        
+        return parts.joined()
+    }
+    
+    private func keyCodeToCharacter(_ keyCode: UInt16) -> String? {
+        let mapping: [UInt16: String] = [
+            0x00: "A", 0x0B: "B", 0x08: "C", 0x02: "D", 0x0E: "E",
+            0x03: "F", 0x05: "G", 0x04: "H", 0x22: "I", 0x26: "J",
+            0x28: "K", 0x25: "L", 0x2E: "M", 0x2D: "N", 0x1F: "O",
+            0x23: "P", 0x0C: "Q", 0x0F: "R", 0x01: "S", 0x11: "T",
+            0x20: "U", 0x09: "V", 0x0D: "W", 0x07: "X", 0x10: "Y",
+            0x06: "Z",
+            0x31: "Space", 0x24: "Return", 0x35: "Esc"
+        ]
+        return mapping[keyCode]
+    }
+}
+
+struct ModifierFlags: OptionSet, Codable {
+    let rawValue: UInt
+    
+    static let control = ModifierFlags(rawValue: 1 << 0)
+    static let option = ModifierFlags(rawValue: 1 << 1)
+    static let shift = ModifierFlags(rawValue: 1 << 2)
+    static let command = ModifierFlags(rawValue: 1 << 3)
+    static let function = ModifierFlags(rawValue: 1 << 4)  // Fn key support
+    
+    init(rawValue: UInt) {
+        self.rawValue = rawValue
+    }
+    
+    init(from eventFlags: NSEvent.ModifierFlags) {
+        var flags: ModifierFlags = []
+        if eventFlags.contains(.control) { flags.insert(.control) }
+        if eventFlags.contains(.option) { flags.insert(.option) }
+        if eventFlags.contains(.shift) { flags.insert(.shift) }
+        if eventFlags.contains(.command) { flags.insert(.command) }
+        if eventFlags.contains(.function) { flags.insert(.function) }
+        self = flags
+    }
+}

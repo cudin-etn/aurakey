@@ -122,9 +122,9 @@ func createVIPDF(at path: String, width: CGFloat, height: CGFloat) {
     print("✅ Created \(path) (\(Int(width))×\(Int(height))pt)")
 }
 
-// Resolve output directory relative to this script's location (Tools/ -> ../XKeyIM/)
+// Resolve output directory relative to this script's location (Tools/ -> ../AurakeyIM/)
 let scriptDir = URL(fileURLWithPath: #filePath).deletingLastPathComponent().path
-let outputDir = (scriptDir as NSString).appendingPathComponent("../XKeyIM")
+let outputDir = (scriptDir as NSString).appendingPathComponent("../AurakeyIM")
 
 // Generate both icons at 20×16pt
 let width: CGFloat = 20
