@@ -64,10 +64,15 @@ jobs:
             "Release/Aurakey-${{ steps.get_version.outputs.version }}.zip" \
             "${{ secrets.SPARKLE_PRIVATE_KEY }}"
 
-      - name: Upload appcast to Pages artifact
+      - name: Prepare Pages artifact
+        run: |
+          mkdir -p _site
+          cp appcast.xml _site/
+
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: appcast.xml
+          path: _site
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
