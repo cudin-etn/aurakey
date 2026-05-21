@@ -9,32 +9,9 @@ import SwiftUI
 
 struct ConvertToolSection: View {
     @StateObject private var viewModel = ConvertToolViewModel()
-    @StateObject private var prefsViewModel = PreferencesViewModel()
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                // Hotkey settings at the top
-                SettingsGroup(title: "Phím tắt", color: AurakeyTheme.accentTeal) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("Phím tắt mở công cụ chuyển đổi:")
-                                .font(.caption)
-                            Spacer()
-                            HotkeyRecorderView(hotkey: $prefsViewModel.preferences.convertToolHotkey, minimumModifiers: 2)
-                                .frame(width: 150)
-                                .onChange(of: prefsViewModel.preferences.convertToolHotkey) { _ in
-                                    // Save immediately when hotkey changes
-                                    prefsViewModel.save()
-                                }
-                        }
-
-                        Text("Nhấn phím tắt này để mở nhanh công cụ chuyển đổi từ bất kỳ đâu")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                }
-
+        VStack(alignment: .leading, spacing: 20) {
                 // Input text
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
@@ -61,7 +38,7 @@ struct ConvertToolSection: View {
                 }
                 
                 // Conversion options
-                SettingsGroup(title: "Chuyển đổi chữ hoa/thường", color: AurakeyTheme.accentTeal) {
+                SettingsGroup(title: "Chuyển đổi chữ hoa/thường", color: AurakeyTheme.accent) {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(spacing: 20) {
                             Toggle("Viết hoa tất cả", isOn: $viewModel.toAllCaps)
@@ -105,12 +82,12 @@ struct ConvertToolSection: View {
                     }
                 }
                 
-                SettingsGroup(title: "Tùy chọn khác", color: AurakeyTheme.accentTeal) {
+                SettingsGroup(title: "Tùy chọn khác", color: AurakeyTheme.accent) {
                     Toggle("Xóa dấu tiếng Việt", isOn: $viewModel.removeMark)
                 }
                 
                 // Code table conversion
-                SettingsGroup(title: "Chuyển đổi bảng mã", color: AurakeyTheme.accentTeal) {
+                SettingsGroup(title: "Chuyển đổi bảng mã", color: AurakeyTheme.accent) {
                     HStack(spacing: 15) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Từ:")
@@ -174,10 +151,8 @@ struct ConvertToolSection: View {
                             .buttonStyle(.borderless)
                         }
                     }
-                }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
         }
     }
 }
+

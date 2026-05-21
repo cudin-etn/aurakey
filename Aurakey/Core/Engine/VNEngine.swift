@@ -130,7 +130,6 @@ class VNEngine {
     var vCodeTable = 0             // 0: Unicode, 1: TCVN3, 2: VNI-Windows
     var vCheckSpelling = 1         // 0: No, 1: Yes
     var vUseModernOrthography = 1  // 0: òa/úy, 1: oà/uý
-    var vQuickTelex = 1            // 0: No, 1: Yes (cc=ch, gg=gi, etc.)
     var vRestoreIfWrongSpelling = 1 // 0: No, 1: Yes
     var vFixRecommendBrowser = 1   // 0: No, 1: Yes
     var vUseMacro = 0              // 0: No, 1: Yes
@@ -149,8 +148,6 @@ class VNEngine {
         }
     }
     var cachedCustomConsonantChars: Set<Character>? // Cache for consonant chars (invalidated on change)
-    var vQuickStartConsonant = 0   // 0: No, 1: Yes (f->ph, j->gi, w->qu)
-    var vQuickEndConsonant = 0     // 0: No, 1: Yes (g->ng, h->nh, k->ch)
     var vTempOffOpenKey = 0        // 0: No, 1: Yes (temp off engine with Option key)
     
     // MARK: - Unified Buffer System
@@ -238,7 +235,6 @@ class VNEngine {
     var upperCaseStatus: UInt8 = 0
     var specialChar = [UInt32]()
     var useSpellCheckingBefore = false
-    var hasHandleQuickConsonant = false
     var willTempOffEngine = false
 
     /// Flag to track when cursor was moved by mouse click or arrow keys
@@ -387,10 +383,6 @@ class VNEngine {
             // Macro replacement only happens on SPACE (in processWordBreak)
         }
         
-        // Check quick consonant
-        if (vQuickStartConsonant == 1 || vQuickEndConsonant == 1) && !tempDisableKey && isMacroBreakCode(keyCode: keyCode, isCaps: isCaps) {
-            checkQuickConsonant()
-        }
         
         // Check restore if wrong spelling
         // IMPORTANT: Skip restore if cursor was moved (editing mid-word)
@@ -435,7 +427,7 @@ class VNEngine {
             }
             vCheckSpelling = useSpellCheckingBefore ? 1 : 0
             willTempOffEngine = false
-        } else if hookState.code == UInt8(vReplaceMacro) || hasHandleQuickConsonant {
+        } else if hookState.code == UInt8(vReplaceMacro) {
             buffer.clear()
         }
         
@@ -621,16 +613,11 @@ class VNEngine {
         let isBracketStandaloneKey = (keyCode == VietnameseData.KEY_LEFT_BRACKET || keyCode == VietnameseData.KEY_RIGHT_BRACKET)
         
         if !isSpecial || (tempDisableKey && !isBracketStandaloneKey) {
-            if vQuickTelex == 1 && isQuickTelexKey(keyCode: keyCode) {
-                handleQuickTelex(keyCode: keyCode, isCaps: isCaps)
-                return
-            } else {
-                hookState.code = UInt8(vDoNothing)
-                hookState.backspaceCount = 0
-                hookState.newCharCount = 0
-                hookState.extCode = 3
-                insertKey(keyCode: keyCode, isCaps: isCaps)
-            }
+            hookState.code = UInt8(vDoNothing)
+            hookState.backspaceCount = 0
+            hookState.newCharCount = 0
+            hookState.extCode = 3
+            insertKey(keyCode: keyCode, isCaps: isCaps)
         } else {
             // Reset tempDisableKey when bracket key passes through
             // This allows subsequent Vietnamese processing to continue
@@ -785,8 +772,7 @@ class VNEngine {
                 
                 // Check if matches consonant D pattern
                 for j in stride(from: vietnameseData.consonantDTable[i].count - 1, through: 0, by: -1) {
-                    let endMask: UInt16 = vQuickEndConsonant == 1 ? 0x4000 : 0
-                    if (vietnameseData.consonantDTable[i][j] & ~endMask) != chr(k - 1) {
+                    if vietnameseData.consonantDTable[i][j] != chr(k - 1) {
                         isCorrect = false
                         break
                     }
@@ -894,8 +880,7 @@ class VNEngine {
                 
                 // Check if matches vowel pattern
                 for j in stride(from: charset.count - 1, through: 0, by: -1) {
-                    let endMask: UInt16 = vQuickEndConsonant == 1 ? 0x4000 : 0
-                    let charsetChar = charset[j] & ~endMask
+                    let charsetChar = charset[j]
                     let bufferChar = chr(k - 1)
                     if charsetChar != bufferChar {
                         isCorrect = false
@@ -1123,8 +1108,7 @@ class VNEngine {
             
             // Check if matches vowel pattern
             for j in stride(from: charset.count - 1, through: 0, by: -1) {
-                let endMask: UInt16 = vQuickEndConsonant == 1 ? 0x4000 : 0
-                if (charset[j] & ~endMask) != chr(k - 1) {
+                if charset[j] != chr(k - 1) {
                     isCorrect = false
                     break
                 }
@@ -1275,28 +1259,6 @@ class VNEngine {
                    keyCode == VietnameseData.KEY_X
         }
         return false
-    }
-    
-    private func isQuickTelexKey(keyCode: UInt16) -> Bool {
-        if index <= 0 {
-            return false
-        }
-        let prevKey = UInt16(typingWord[Int(index) - 1] & VNEngine.CHAR_MASK)
-        
-        // Quick Telex only applies when:
-        // 1. Current key is one of C, G, K, N, Q, P, T
-        // 2. Previous key is the same (double letter)
-        // 3. The double letter is at the beginning of the word (index == 1)
-        //    This prevents "app" from becoming "aph"
-        //    Quick Telex is meant for quickly typing consonant clusters at word start:
-        //    pp → ph, cc → ch, gg → gi, nn → ng, kk → kh, qq → qu, tt → th
-        let isQuickTelexChar = (keyCode == VietnameseData.KEY_C || keyCode == VietnameseData.KEY_G ||
-                                keyCode == VietnameseData.KEY_K || keyCode == VietnameseData.KEY_N ||
-                                keyCode == VietnameseData.KEY_Q || keyCode == VietnameseData.KEY_P ||
-                                keyCode == VietnameseData.KEY_T)
-        
-        // Only apply at word start to avoid bugs like "app" → "aph"
-        return isQuickTelexChar && prevKey == keyCode && index == 1
     }
     
     private func isKeyZ(keyCode: UInt16, inputType: Int) -> Bool {
@@ -2009,8 +1971,7 @@ class VNEngine {
                     let baseKeyForAllowCheck = patternKey & ~(VietnameseData.CONSONANT_ALLOW_MASK | VietnameseData.END_CONSONANT_MASK)
                     let shouldUnmaskAllow = (patternKey & VietnameseData.CONSONANT_ALLOW_MASK) != 0 && vCustomConsonants.contains(baseKeyForAllowCheck)
                     let patternKeyMasked = patternKey & ~(
-                        (shouldUnmaskAllow ? VietnameseData.CONSONANT_ALLOW_MASK : 0) |
-                        (vQuickStartConsonant == 1 ? VietnameseData.END_CONSONANT_MASK : 0)
+                        shouldUnmaskAllow ? VietnameseData.CONSONANT_ALLOW_MASK : 0
                     )
                     
                     if Int(spellingEndIndex) > idx && patternKeyMasked != actualKey {
@@ -2122,7 +2083,7 @@ class VNEngine {
                 var matches = true
                 
                 for (patternIdx, patternKey) in endPattern.enumerated() {
-                    let patternKeyMasked = patternKey & ~(vQuickEndConsonant == 1 ? VietnameseData.END_CONSONANT_MASK : 0)
+                    let patternKeyMasked = patternKey
                     
                     if Int(spellingEndIndex) > k + patternIdx {
                         if patternKeyMasked != chr(k + patternIdx) {
@@ -2529,7 +2490,7 @@ class VNEngine {
         // When instant restore is OFF, we should NOT block typing here
         // because the word is still being typed (e.g., "vịe" is incomplete, will become "việt")
         // Dictionary validation will happen when user presses Space
-        // Hierarchy: instantRestore requires restoreIfWrongSpelling requires spellCheckEnabled
+        // Hierarchy: instantRestore requires restoreIfWrongSpelling
         //
         // IMPORTANT: Only check when ADDING a new mark, not when REMOVING (duplicate/undo)
         // When user presses same mark key twice (e.g., 'ỏ' + 'r' → 'o'), this is normal restore
@@ -2537,7 +2498,6 @@ class VNEngine {
         let isDuplicateMark = (hookState.code == UInt8(vRestore))
         
         if !isDuplicateMark &&
-           SharedSettings.shared.spellCheckEnabled && 
            SharedSettings.shared.restoreIfWrongSpelling &&
            SharedSettings.shared.instantRestoreOnWrongSpelling &&
            canModifyFlag {
@@ -2994,7 +2954,6 @@ class VNEngine {
 
         tempDisableKey = false
         hasHandledMacro = false
-        hasHandleQuickConsonant = false
         // Reset desync flag on new session - fresh start
         bufferDesyncDetected = false
 
@@ -3603,7 +3562,6 @@ extension VNEngine {
             hookState.newCharCount = 0
             tempDisableKey = false
             hasHandledMacro = false
-            hasHandleQuickConsonant = false
         }
         
         // Reset spell checking to original setting
@@ -3618,90 +3576,6 @@ extension VNEngine {
         updateUpperCaseStatus(character: character)
 
         return ProcessResult() // Empty result, no consumption
-    }
-    
-    /// Debug: Read word before cursor (for testing)
-    /// This reads the actual text from the focused application using Accessibility API
-    func debugReadWordBeforeCursor() {
-        logCallback?("=== DEBUG: Read Word Before Cursor ===")
-        
-        // 1. Log internal buffer state
-        logCallback?("[Internal Buffer]")
-        logCallback?("  Buffer index: \(index)")
-        logCallback?("  Buffer word: \(getCurrentWord())")
-        
-        // Log each character in buffer
-        for i in 0..<Int(index) {
-            let isCaps = (typingWord[i] & VNEngine.CAPS_MASK) != 0
-            let hasTone = (typingWord[i] & VNEngine.TONE_MASK) != 0
-            let hasToneW = (typingWord[i] & VNEngine.TONEW_MASK) != 0
-            let hasMark = (typingWord[i] & VNEngine.MARK_MASK) != 0
-            
-            logCallback?("  [\(i)]: keyCode=\(chr(i)) caps=\(isCaps) tone=\(hasTone) toneW=\(hasToneW) mark=\(hasMark)")
-        }
-        
-        // 2. Read actual text from focused application using Accessibility API
-        logCallback?("[Accessibility - Focused App]")
-        
-        guard let focusedApp = NSWorkspace.shared.frontmostApplication else {
-            logCallback?("  No frontmost application")
-            return
-        }
-        
-        logCallback?("  App: \(focusedApp.localizedName ?? "Unknown") (\(focusedApp.bundleIdentifier ?? ""))")
-        
-        let appElement = AXUIElementCreateApplication(focusedApp.processIdentifier)
-        
-        // Get focused element
-        guard let axElement = AXHelper.getElement(appElement, attribute: kAXFocusedUIElementAttribute) else {
-            logCallback?("  Cannot get focused element")
-            return
-        }
-        
-        // Get role
-        let role = AXHelper.getString(axElement, attribute: kAXRoleAttribute) ?? "Unknown"
-        logCallback?("  Role: \(role)")
-        
-        // Get selected text range
-        if let range = AXHelper.getRange(axElement, attribute: kAXSelectedTextRangeAttribute) {
-            logCallback?("  Cursor position: \(range.location), selection length: \(range.length)")
-            
-            // Get full text value
-            if let text = AXHelper.getString(axElement, attribute: kAXValueAttribute) {
-                let cursorPos = range.location
-                
-                // Find word before cursor
-                if cursorPos > 0 && cursorPos <= text.count {
-                    let textBeforeCursor = String(text.prefix(cursorPos))
-                    
-                    // Find last word (split by whitespace)
-                    let words = textBeforeCursor.components(separatedBy: .whitespacesAndNewlines)
-                    let lastWord = words.last ?? ""
-                    
-                    logCallback?("  Text before cursor: \"\(textBeforeCursor.suffix(50))\"")
-                    logCallback?("  Last word: \"\(lastWord)\"")
-                    
-                    // Show Unicode code points
-                    if !lastWord.isEmpty {
-                        let codePoints = lastWord.unicodeScalars.map { String(format: "U+%04X", $0.value) }.joined(separator: " ")
-                        logCallback?("  Unicode: \(codePoints)")
-                    }
-                } else {
-                    logCallback?("  Cursor at position 0 or invalid")
-                }
-            } else {
-                logCallback?("  Cannot get text value")
-            }
-        } else {
-            logCallback?("  Cannot get selected text range")
-            
-            // Try alternative: get selected text directly
-            if let selectedText = AXHelper.getString(axElement, attribute: kAXSelectedTextAttribute) {
-                logCallback?("  Selected text: \"\(selectedText)\"")
-            }
-        }
-        
-        logCallback?("=== End Read Word ===")
     }
     
     /// Convert HookState to ProcessResult
@@ -3896,5 +3770,27 @@ extension VNEngine {
         case VietnameseData.KEY_X: return .x
         default: return nil
         }
+    }
+
+    // MARK: - Legacy word validation compatibility (spell-check removed)
+
+    func hasVietnameseProcessing() -> Bool {
+        guard !buffer.isEmpty else { return false }
+        for i in 0..<buffer.count {
+            let entry = buffer[i]
+            if entry.hasTone || entry.hasToneW || entry.hasMark || entry.isStandalone {
+                return true
+            }
+        }
+        return false
+    }
+
+    func isCurrentWordValid() -> Bool {
+        return true
+    }
+
+    func checkWordSpelling(word: String) -> Bool {
+        _ = word
+        return true
     }
 }

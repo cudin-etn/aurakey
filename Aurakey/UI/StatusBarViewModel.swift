@@ -29,14 +29,27 @@ class StatusBarViewModel: ObservableObject {
     }
     
     func toggleVietnamese() {
-        isVietnameseEnabled.toggle()
-        keyboardHandler?.setVietnamese(isVietnameseEnabled)
-        
-        let prefs = SharedSettings.shared.loadPreferences()
-        if prefs.beepOnToggle {
-            AudioManager.shared.playBeep()
+        applyVietnameseState(!isVietnameseEnabled, showCursorHUD: true, playBeep: true)
+    }
+
+    /// Apply VI/EN state and optionally show the cursor HUD indicator.
+    func applyVietnameseState(_ enabled: Bool, showCursorHUD: Bool, playBeep: Bool = false) {
+        guard isVietnameseEnabled != enabled else { return }
+
+        isVietnameseEnabled = enabled
+        keyboardHandler?.setVietnamese(enabled)
+
+        if showCursorHUD {
+            CursorHUDController.shared.show(isVietnamese: enabled)
         }
-        
+
+        if playBeep {
+            let prefs = SharedSettings.shared.loadPreferences()
+            if prefs.beepOnToggle {
+                AudioManager.shared.playBeep()
+            }
+        }
+
         saveLanguageForCurrentApp()
     }
     

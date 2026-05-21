@@ -9,7 +9,7 @@
 import Cocoa
 
 /// Manages pin (always-on-top) button for NSWindow title bars
-/// Used by PreferencesWindowController, SettingsWindowController, and DebugWindowController
+/// Used by SettingsWindowController and other utility windows
 class WindowPinManager {
     
     private weak var window: NSWindow?
@@ -58,7 +58,7 @@ class WindowPinManager {
         isAlwaysOnTop.toggle()
         
         if let onToggle = onToggle {
-            // Delegate to custom handler (e.g. DebugWindowController syncs with ViewModel)
+            // Delegate to custom handler when provided
             onToggle(isAlwaysOnTop)
         } else {
             // Default behavior: directly set window level

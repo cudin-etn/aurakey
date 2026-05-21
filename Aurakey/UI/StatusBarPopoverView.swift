@@ -43,7 +43,7 @@ struct StatusBarPopoverView: View {
             .padding(.bottom, 8)
         }
         .frame(width: 280)
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(VisualEffectBackground(material: .hudWindow, blendingMode: .behindWindow))
     }
 
     // MARK: - Hero Header

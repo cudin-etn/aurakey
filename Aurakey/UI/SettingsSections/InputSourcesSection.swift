@@ -12,8 +12,7 @@ struct InputSourcesSection: View {
     @StateObject private var viewModel = InputSourcesViewModel()
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 20) {
                 // Header with explanation
                 SettingsGroup(title: "Quản lý Input Sources", color: .green) {
                     VStack(alignment: .leading, spacing: 12) {
@@ -115,9 +114,6 @@ struct InputSourcesSection: View {
                     }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
-        }
         .onAppear {
             viewModel.loadInputSources()
         }

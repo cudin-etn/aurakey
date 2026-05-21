@@ -18,8 +18,7 @@ struct BackupRestoreSection: View {
     @State private var restartReason: RestartReason = .importSettings
     
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 20) {
                 // Export Section
                 SettingsGroup(title: "Sao lưu thiết lập", color: .cyan) {
                     VStack(alignment: .leading, spacing: 8) {
@@ -108,9 +107,6 @@ struct BackupRestoreSection: View {
                         }
                     }
                 }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
         }
         .alert(alertTitle, isPresented: $showSuccessAlert) {
             Button("OK", role: .cancel) { }

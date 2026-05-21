@@ -3,7 +3,7 @@
 //  Aurakey
 //
 //  Alias for ExcludedAppsSettingsSection from ExcludedAppsView.swift
-//  This allows using the same component in both SettingsView and PreferencesView
+//  Excluded apps settings section for SettingsView
 //
 
 import SwiftUI

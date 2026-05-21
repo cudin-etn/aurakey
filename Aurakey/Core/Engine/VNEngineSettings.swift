@@ -18,9 +18,6 @@ extension VNEngine {
         var spellCheckEnabled: Bool = true
         
         // Advanced features
-        var quickTelexEnabled: Bool = true
-        var quickStartConsonantEnabled: Bool = false
-        var quickEndConsonantEnabled: Bool = false
         var upperCaseFirstChar: Bool = false
         var restoreIfWrongSpelling: Bool = true
 
@@ -59,9 +56,6 @@ extension VNEngine {
         useSpellCheckingBefore = settings.spellCheckEnabled  // Sync internal state to prevent restoration to old value
         
         // Advanced features
-        vQuickTelex = settings.quickTelexEnabled ? 1 : 0
-        vQuickStartConsonant = settings.quickStartConsonantEnabled ? 1 : 0
-        vQuickEndConsonant = settings.quickEndConsonantEnabled ? 1 : 0
         vUpperCaseFirstChar = settings.upperCaseFirstChar ? 1 : 0
         vRestoreIfWrongSpelling = settings.restoreIfWrongSpelling ? 1 : 0
 
@@ -103,9 +97,6 @@ extension VNEngine {
         settings.spellCheckEnabled = vCheckSpelling == 1
         
         // Advanced features
-        settings.quickTelexEnabled = vQuickTelex == 1
-        settings.quickStartConsonantEnabled = vQuickStartConsonant == 1
-        settings.quickEndConsonantEnabled = vQuickEndConsonant == 1
         settings.upperCaseFirstChar = vUpperCaseFirstChar == 1
         settings.restoreIfWrongSpelling = vRestoreIfWrongSpelling == 1
         settings.customConsonants = vCustomConsonants

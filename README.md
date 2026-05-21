@@ -1,7 +1,7 @@
 # Aurakey
 
 <div align="center">
-  <img src="aurakey.png" alt="Aurakey Logo" width="128" height="128">
+  <img src="Aurakey/Assets.xcassets/AurakeyLogo.imageset/aurakey-logo@2x.png" alt="Aurakey Logo" width="128" height="128">
   
   **Bộ gõ tiếng Việt hiện đại cho macOS**
   
@@ -31,6 +31,7 @@ Mục tiêu: gọn nhẹ, sạch sẽ, tương thích macOS mới nhất, hỗ t
 - 🪄 **Window Title Rules** — Tuỳ chỉnh engine theo từng web/app
 - 🔀 **Quản lý Input Source** — Bật/tắt theo từng input source
 - 🛟 **Temp Off Toolbar** — Thanh công cụ nổi tại con trỏ
+- 💎 **Cursor Mode HUD** — Huy hiệu V/E kính mờ cạnh con trỏ khi đổi ngôn ngữ
 - ⏪ **Undo gõ** — Hoàn tác thêm dấu
 - 💾 **Backup/Restore** — Sao lưu toàn bộ cài đặt
 - 🔄 **Auto-update** — Cập nhật tự động qua Sparkle

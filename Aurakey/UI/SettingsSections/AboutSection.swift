@@ -13,8 +13,7 @@ struct AboutSection: View {
     @State private var logoOpacity: Double = 0
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
+        VStack(spacing: 0) {
                 // Hero area
                 VStack(spacing: 14) {
                     // App Logo with entrance animation
@@ -223,8 +222,6 @@ struct AboutSection: View {
                     .foregroundColor(.secondary.opacity(0.5))
                     .padding(.bottom, 14)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
         .sheet(isPresented: $showDonationDialog) {
             DonationView()
         }
@@ -242,11 +239,11 @@ private struct AboutCard<Content: View>: View {
             .frame(maxWidth: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(AurakeyTheme.cardGradient(for: .mint))
+                    .fill(AurakeyTheme.cardBackground)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(AurakeyTheme.borderGradient(for: .mint), lineWidth: 1)
+                    .strokeBorder(AurakeyTheme.accent.opacity(0.2), lineWidth: 1)
             )
     }
 }
@@ -283,14 +280,12 @@ private struct AboutLinkCard: View {
             .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(isHovered ? LinearGradient(colors: [color.opacity(0.08), color.opacity(0.04)], startPoint: .topLeading, endPoint: .bottomTrailing) : AurakeyTheme.cardGradient(for: color))
+                    .fill(isHovered ? color.opacity(0.08) : AurakeyTheme.cardBackground)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
                     .strokeBorder(
-                        isHovered
-                            ? LinearGradient(colors: [color.opacity(0.3), color.opacity(0.15)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                            : AurakeyTheme.borderGradient(for: color),
+                        isHovered ? color.opacity(0.3) : color.opacity(0.2),
                         lineWidth: 1
                     )
             )

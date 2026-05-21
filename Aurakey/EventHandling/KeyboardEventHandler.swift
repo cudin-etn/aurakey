@@ -39,26 +39,8 @@ class KeyboardEventHandler: EventTapManager.EventTapDelegate {
     @Published var modernStyle: Bool = true {
         didSet { updateEngineSettings() }
     }
-    
-    @Published var spellCheckEnabled: Bool = true {
-        didSet { updateEngineSettings() }
-    }
-    
 
-    
     // Advanced features
-    @Published var quickTelexEnabled: Bool = true {
-        didSet { updateEngineSettings() }
-    }
-    
-    @Published var quickStartConsonantEnabled: Bool = false {
-        didSet { updateEngineSettings() }
-    }
-    
-    @Published var quickEndConsonantEnabled: Bool = false {
-        didSet { updateEngineSettings() }
-    }
-    
     @Published var upperCaseFirstChar: Bool = false {
         didSet { updateEngineSettings() }
     }
@@ -685,12 +667,8 @@ class KeyboardEventHandler: EventTapManager.EventTapDelegate {
         settings.inputMethod = inputMethod
         settings.codeTable = codeTable
         settings.modernStyle = modernStyle
-        settings.spellCheckEnabled = spellCheckEnabled
         
         // Advanced features
-        settings.quickTelexEnabled = quickTelexEnabled
-        settings.quickStartConsonantEnabled = quickStartConsonantEnabled
-        settings.quickEndConsonantEnabled = quickEndConsonantEnabled
         settings.upperCaseFirstChar = upperCaseFirstChar
         settings.restoreIfWrongSpelling = restoreIfWrongSpelling
 
@@ -707,9 +685,6 @@ class KeyboardEventHandler: EventTapManager.EventTapDelegate {
         
         engine.updateSettings(settings)
         
-        // Debug: Log spell check setting sync
-        debugLogCallback?("⚙️ Settings sync: spellCheckEnabled=\(spellCheckEnabled) → vCheckSpelling=\(engine.vCheckSpelling)")
-        
         // Update macro manager
         macroManager.setCodeTable(codeTable.rawValue)
         macroManager.setAutoCapsMacro(autoCapsMacro)
@@ -721,10 +696,6 @@ class KeyboardEventHandler: EventTapManager.EventTapDelegate {
         inputMethod: InputMethod,
         codeTable: CodeTable,
         modernStyle: Bool,
-        spellCheckEnabled: Bool,
-        quickTelexEnabled: Bool,
-        quickStartConsonantEnabled: Bool,
-        quickEndConsonantEnabled: Bool,
         upperCaseFirstChar: Bool,
         restoreIfWrongSpelling: Bool,
         customConsonants: String,
@@ -743,10 +714,6 @@ class KeyboardEventHandler: EventTapManager.EventTapDelegate {
         self.inputMethod = inputMethod
         self.codeTable = codeTable
         self.modernStyle = modernStyle
-        self.spellCheckEnabled = spellCheckEnabled
-        self.quickTelexEnabled = quickTelexEnabled
-        self.quickStartConsonantEnabled = quickStartConsonantEnabled
-        self.quickEndConsonantEnabled = quickEndConsonantEnabled
         self.upperCaseFirstChar = upperCaseFirstChar
         self.restoreIfWrongSpelling = restoreIfWrongSpelling
         self.customConsonants = customConsonants

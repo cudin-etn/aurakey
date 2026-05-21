@@ -64,12 +64,14 @@ class CharacterInjector {
     func waitForInjectionComplete() {
         let startTime = CFAbsoluteTimeGetCurrent()
         let result = injectionSemaphore.wait(timeout: .now() + semaphoreTimeout)
-        injectionSemaphore.signal()
         let waitTimeMs = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
         if result == .timedOut {
             debugCallback?("    ⚠️ Injection semaphore timed out after \(String(format: "%.1f", waitTimeMs))ms — proceeding anyway")
-        } else if waitTimeMs > 0.5 {
-            debugCallback?("    → Waited \(String(format: "%.1f", waitTimeMs))ms for previous injection")
+        } else {
+            injectionSemaphore.signal()
+            if waitTimeMs > 0.5 {
+                debugCallback?("    → Waited \(String(format: "%.1f", waitTimeMs))ms for previous injection")
+            }
         }
     }
     

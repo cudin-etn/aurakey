@@ -54,13 +54,171 @@ class FloatingToolbarPositioning {
     ///   - cursorGap: Gap between panel and cursor position (points)
     ///   - mouseGap: Gap between panel and mouse position (points)
     static func positionNearCursor(_ panel: NSPanel, cursorGap: CGFloat = 4, mouseGap: CGFloat = 8) {
-        if let cursorRect = getCursorRectFromAccessibility() {
-            positionPanel(panel, relativeTo: cursorRect, gap: cursorGap)
+        if let caretRect = getTextInsertionRect() {
+            positionPanel(panel, relativeTo: caretRect, gap: cursorGap)
         } else {
             let mouseLocation = NSEvent.mouseLocation
             let mouseRect = NSRect(x: mouseLocation.x, y: mouseLocation.y, width: 1, height: 20)
             positionPanel(panel, relativeTo: mouseRect, gap: mouseGap)
         }
+    }
+
+    /// Try to position using the frontmost app's focused element.
+    /// Helpful for browsers and web apps where the content caret is not exposed.
+    static func positionUsingFocusedElementBounds(_ panel: NSPanel, gap: CGFloat = 8) -> Bool {
+        guard let focusedElement = AXHelper.getFocusedElement() else { return false }
+
+        if let anchor = bestAnchorRect(for: focusedElement) {
+            positionPanel(panel, relativeTo: anchor, gap: gap)
+            return true
+        }
+
+        return false
+    }
+
+    enum AnchorConfidence {
+        case high
+        case medium
+        case low
+    }
+
+    /// Resolve the best anchor rect for a focused element.
+    /// Preference order:
+    /// 1) Exact caret bounds
+    /// 2) Visible-range fallback
+    /// 3) Focused element frame, if it looks like a text input
+    /// 4) Browser/web-area heuristics
+    static func bestAnchorRect(for element: AXUIElement) -> NSRect? {
+        bestAnchor(for: element)?.rect
+    }
+
+    static func bestAnchor(for element: AXUIElement) -> (rect: NSRect, confidence: AnchorConfidence)? {
+        if let caretRect = getCursorBoundsViaRange(element) {
+            return (caretRect, .high)
+        }
+
+        if let insertionRect = getInsertionPointBounds(element) {
+            return (insertionRect, .medium)
+        }
+
+        if let rect = elementBoundsAnchor(element), isTextLikeElement(element) {
+            return (rect, .low)
+        }
+
+        if let rect = elementBoundsAnchor(element, biasTowardTop: true), isBrowserOrWebArea(element) {
+            return (rect, .low)
+        }
+
+        return nil
+    }
+
+    private static func elementBoundsAnchor(_ element: AXUIElement, biasTowardTop: Bool = false) -> NSRect? {
+        var positionRef: CFTypeRef?
+        var sizeRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &positionRef) == .success,
+              AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sizeRef) == .success,
+              let positionValue = positionRef,
+              let sizeValue = sizeRef else {
+            return nil
+        }
+
+        var axPosition = CGPoint.zero
+        var axSize = CGSize.zero
+        guard AXValueGetValue(positionValue as! AXValue, .cgPoint, &axPosition),
+              AXValueGetValue(sizeValue as! AXValue, .cgSize, &axSize) else {
+            return nil
+        }
+
+        guard let cocoaRect = convertAXToCocoaCoordinates(CGRect(origin: axPosition, size: axSize)) else {
+            return nil
+        }
+
+        let insetY = min(10, max(2, cocoaRect.height * 0.18))
+        let anchorY = biasTowardTop ? cocoaRect.maxY - insetY : cocoaRect.minY + insetY
+        return NSRect(
+            x: cocoaRect.midX - 1,
+            y: anchorY,
+            width: 2,
+            height: max(cocoaRect.height * 0.22, 18)
+        )
+    }
+
+    private static func isTextLikeElement(_ element: AXUIElement) -> Bool {
+        let role = (AXHelper.getString(element, attribute: kAXRoleAttribute) ?? "").lowercased()
+        let subrole = (AXHelper.getString(element, attribute: kAXSubroleAttribute) ?? "").lowercased()
+        let description = (AXHelper.getString(element, attribute: kAXDescriptionAttribute) ?? "").lowercased()
+        let identifier = (AXHelper.getString(element, attribute: "AXIdentifier") ?? "").lowercased()
+
+        return role.contains("textfield") || role.contains("text area") || role.contains("textview") ||
+               role.contains("editable") || subrole.contains("searchfield") || subrole.contains("textarea") ||
+               description.contains("text") || description.contains("search") || identifier.contains("input") ||
+               identifier.contains("editor")
+    }
+
+    private static func isBrowserOrWebArea(_ element: AXUIElement) -> Bool {
+        let role = (AXHelper.getString(element, attribute: kAXRoleAttribute) ?? "").lowercased()
+        let subrole = (AXHelper.getString(element, attribute: kAXSubroleAttribute) ?? "").lowercased()
+        let description = (AXHelper.getString(element, attribute: kAXDescriptionAttribute) ?? "").lowercased()
+        return role.contains("webarea") || role.contains("browser") || subrole.contains("webarea") || description.contains("web")
+    }
+
+    /// Position above the text insertion point (caret). Does not use mouse position.
+    /// - Returns: `true` when a caret/text-field anchor was found.
+    @discardableResult
+    static func positionAboveTextCaret(_ panel: NSPanel, gap: CGFloat = 10) -> Bool {
+        guard let caretRect = getTextInsertionRect() else { return false }
+        positionPanel(panel, relativeTo: caretRect, gap: gap)
+        return true
+    }
+
+    /// Caret anchor for HUD/toolbars — prefers AX insertion point over mouse.
+    static func getTextInsertionRect() -> NSRect? {
+        if let caretRect = getCursorRectFromAccessibility() {
+            let lineHeight = max(caretRect.height, 16)
+            return NSRect(
+                x: caretRect.midX - 1,
+                y: caretRect.minY,
+                width: 2,
+                height: lineHeight
+            )
+        }
+        if let fallbackRect = getFocusedTextFieldCaretFallbackRect() {
+            return fallbackRect
+        }
+        return nil
+    }
+
+    /// Fallback when range bounds are unavailable: anchor near the focused text field's typing line.
+    private static func getFocusedTextFieldCaretFallbackRect() -> NSRect? {
+        guard let element = AXHelper.getFocusedElement() else { return nil }
+
+        var positionRef: CFTypeRef?
+        var sizeRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &positionRef) == .success,
+              AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sizeRef) == .success,
+              let positionValue = positionRef,
+              let sizeValue = sizeRef else {
+            return nil
+        }
+
+        var axPosition = CGPoint.zero
+        var axSize = CGSize.zero
+        guard AXValueGetValue(positionValue as! AXValue, .cgPoint, &axPosition),
+              AXValueGetValue(sizeValue as! AXValue, .cgSize, &axSize) else {
+            return nil
+        }
+
+        let axRect = CGRect(origin: axPosition, size: axSize)
+        guard let cocoaRect = convertAXToCocoaCoordinates(axRect) else { return nil }
+
+        let lineHeight: CGFloat = 18
+        let insetY: CGFloat = min(8, max(2, cocoaRect.height * 0.15))
+        return NSRect(
+            x: cocoaRect.midX - 1,
+            y: cocoaRect.minY + insetY,
+            width: 2,
+            height: lineHeight
+        )
     }
     
     // MARK: - Panel Positioning

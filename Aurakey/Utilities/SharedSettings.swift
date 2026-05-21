@@ -28,12 +28,8 @@ enum SharedSettingsKey: String {
     case inputMethod = "Aurakey.inputMethod"
     case codeTable = "Aurakey.codeTable"
     case modernStyle = "Aurakey.modernStyle"
-    case spellCheckEnabled = "Aurakey.spellCheckEnabled"
 
     // Advanced settings
-    case quickTelexEnabled = "Aurakey.quickTelexEnabled"
-    case quickStartConsonantEnabled = "Aurakey.quickStartConsonantEnabled"
-    case quickEndConsonantEnabled = "Aurakey.quickEndConsonantEnabled"
     case upperCaseFirstChar = "Aurakey.upperCaseFirstChar"
     case restoreIfWrongSpelling = "Aurakey.restoreIfWrongSpelling"
     case instantRestoreOnWrongSpelling = "Aurakey.instantRestoreOnWrongSpelling"
@@ -43,8 +39,6 @@ enum SharedSettingsKey: String {
     case tempOffToolbarEnabled = "Aurakey.tempOffToolbarEnabled"
     case tempOffToolbarHotkeyCode = "Aurakey.tempOffToolbarHotkeyCode"
     case tempOffToolbarHotkeyModifiers = "Aurakey.tempOffToolbarHotkeyModifiers"
-    case convertToolHotkeyCode = "Aurakey.convertToolHotkeyCode"
-    case convertToolHotkeyModifiers = "Aurakey.convertToolHotkeyModifiers"
 
     // Macro settings
     case macroEnabled = "Aurakey.macroEnabled"
@@ -57,16 +51,11 @@ enum SharedSettingsKey: String {
     case smartSwitchEnabled = "Aurakey.smartSwitchEnabled"
     case smartSwitchData = "Aurakey.smartSwitchData"          // JSON-encoded [String: Int] per-app language map
 
-    // Debug settings
-    case debugModeEnabled = "Aurakey.debugModeEnabled"
-    case debugHotkeyCode = "Aurakey.debugHotkeyCode"
-    case debugHotkeyModifiers = "Aurakey.debugHotkeyModifiers"
-    case openDebugOnLaunch = "Aurakey.openDebugOnLaunch"
-
     // UI settings
     case startAtLogin = "Aurakey.startAtLogin"
     case menuBarIconStyle = "Aurakey.menuBarIconStyle"
     case autoCheckForUpdates = "Aurakey.autoCheckForUpdates"
+    case cursorHUDEnabled = "Aurakey.cursorHUDEnabled"
 
     // Excluded apps
     case excludedApps = "Aurakey.excludedApps"
@@ -107,8 +96,6 @@ class SharedSettings {
         SharedSettingsKey.inputMethod.rawValue: InputMethod.telex.rawValue,
         SharedSettingsKey.codeTable.rawValue: CodeTable.unicode.rawValue,
         SharedSettingsKey.modernStyle.rawValue: false,
-        SharedSettingsKey.spellCheckEnabled.rawValue: false,
-        SharedSettingsKey.quickTelexEnabled.rawValue: false,
         SharedSettingsKey.restoreIfWrongSpelling.rawValue: true,
         SharedSettingsKey.smartSwitchEnabled.rawValue: true
     ]
@@ -295,39 +282,7 @@ class SharedSettings {
         }
     }
 
-    var spellCheckEnabled: Bool {
-        get { readBool(forKey: SharedSettingsKey.spellCheckEnabled.rawValue) }
-        set {
-            writeBool(newValue, forKey: SharedSettingsKey.spellCheckEnabled.rawValue)
-            notifySettingsChanged()
-        }
-    }
-
     // MARK: - Advanced Settings
-
-    var quickTelexEnabled: Bool {
-        get { readBool(forKey: SharedSettingsKey.quickTelexEnabled.rawValue) }
-        set {
-            writeBool(newValue, forKey: SharedSettingsKey.quickTelexEnabled.rawValue)
-            notifySettingsChanged()
-        }
-    }
-
-    var quickStartConsonantEnabled: Bool {
-        get { readBool(forKey: SharedSettingsKey.quickStartConsonantEnabled.rawValue) }
-        set {
-            writeBool(newValue, forKey: SharedSettingsKey.quickStartConsonantEnabled.rawValue)
-            notifySettingsChanged()
-        }
-    }
-
-    var quickEndConsonantEnabled: Bool {
-        get { readBool(forKey: SharedSettingsKey.quickEndConsonantEnabled.rawValue) }
-        set {
-            writeBool(newValue, forKey: SharedSettingsKey.quickEndConsonantEnabled.rawValue)
-            notifySettingsChanged()
-        }
-    }
 
     var upperCaseFirstChar: Bool {
         get { readBool(forKey: SharedSettingsKey.upperCaseFirstChar.rawValue) }
@@ -391,31 +346,6 @@ class SharedSettings {
         }
     }
 
-    var convertToolHotkeyCode: UInt16 {
-        get { UInt16(readInt(forKey: SharedSettingsKey.convertToolHotkeyCode.rawValue)) }
-        set {
-            writeInt(Int(newValue), forKey: SharedSettingsKey.convertToolHotkeyCode.rawValue)
-            notifyConvertToolHotkeyChanged()
-        }
-    }
-
-    var convertToolHotkeyModifiers: UInt {
-        get { UInt(readInt(forKey: SharedSettingsKey.convertToolHotkeyModifiers.rawValue)) }
-        set {
-            writeInt(Int(newValue), forKey: SharedSettingsKey.convertToolHotkeyModifiers.rawValue)
-            notifyConvertToolHotkeyChanged()
-        }
-    }
-
-    /// Notify that convert tool hotkey has changed
-    private func notifyConvertToolHotkeyChanged() {
-        guard !isBatchUpdating else { return }
-        NotificationCenter.default.post(
-            name: .convertToolHotkeyDidChange,
-            object: nil
-        )
-    }
-
     /// Notify that toolbar settings have changed
     private func notifyToolbarChanged() {
         guard !isBatchUpdating else { return }
@@ -476,47 +406,6 @@ class SharedSettings {
         writeData(data, forKey: SharedSettingsKey.smartSwitchData.rawValue)
     }
 
-    // MARK: - Debug Settings
-
-    var debugModeEnabled: Bool {
-        get { readBool(forKey: SharedSettingsKey.debugModeEnabled.rawValue) }
-        set {
-            writeBool(newValue, forKey: SharedSettingsKey.debugModeEnabled.rawValue)
-            notifyDebugSettingsChanged()
-        }
-    }
-
-    var debugHotkeyCode: UInt16 {
-        get { UInt16(readInt(forKey: SharedSettingsKey.debugHotkeyCode.rawValue)) }
-        set {
-            writeInt(Int(newValue), forKey: SharedSettingsKey.debugHotkeyCode.rawValue)
-            notifyDebugSettingsChanged()
-        }
-    }
-
-    var debugHotkeyModifiers: UInt {
-        get { UInt(readInt(forKey: SharedSettingsKey.debugHotkeyModifiers.rawValue)) }
-        set {
-            writeInt(Int(newValue), forKey: SharedSettingsKey.debugHotkeyModifiers.rawValue)
-            notifyDebugSettingsChanged()
-        }
-    }
-
-    /// Open debug window automatically when app launches
-    var openDebugOnLaunch: Bool {
-        get { readBool(forKey: SharedSettingsKey.openDebugOnLaunch.rawValue) }
-        set { writeBool(newValue, forKey: SharedSettingsKey.openDebugOnLaunch.rawValue) }
-    }
-
-    /// Notify that debug settings have changed
-    private func notifyDebugSettingsChanged() {
-        guard !isBatchUpdating else { return }
-        NotificationCenter.default.post(
-            name: .debugSettingsDidChange,
-            object: nil
-        )
-    }
-
     // MARK: - UI Settings
 
     var startAtLogin: Bool {
@@ -527,6 +416,17 @@ class SharedSettings {
     var menuBarIconStyle: String {
         get { readString(forKey: SharedSettingsKey.menuBarIconStyle.rawValue) ?? "X" }
         set { writeString(newValue, forKey: SharedSettingsKey.menuBarIconStyle.rawValue) }
+    }
+
+    var cursorHUDEnabled: Bool {
+        get {
+            let dict = readPlistDict()
+            if let value = dict[SharedSettingsKey.cursorHUDEnabled.rawValue] as? Bool {
+                return value
+            }
+            return true
+        }
+        set { writeBool(newValue, forKey: SharedSettingsKey.cursorHUDEnabled.rawValue) }
     }
 
     var autoCheckForUpdates: Bool {
@@ -788,7 +688,6 @@ class SharedSettings {
         // Notify all observers that settings have been reset
         notifySettingsChanged()
         notifyToolbarChanged()
-        notifyDebugSettingsChanged()
         
         sharedLogSuccess("Settings reset to factory defaults")
         return true
@@ -832,12 +731,8 @@ class SharedSettings {
             prefs.codeTable = table
         }
         prefs.modernStyle = modernStyle
-        prefs.spellCheckEnabled = spellCheckEnabled
 
         // Advanced settings
-        prefs.quickTelexEnabled = quickTelexEnabled
-        prefs.quickStartConsonantEnabled = quickStartConsonantEnabled
-        prefs.quickEndConsonantEnabled = quickEndConsonantEnabled
         prefs.upperCaseFirstChar = upperCaseFirstChar
         prefs.restoreIfWrongSpelling = restoreIfWrongSpelling
         prefs.instantRestoreOnWrongSpelling = instantRestoreOnWrongSpelling
@@ -857,16 +752,6 @@ class SharedSettings {
             )
         }
 
-        // Convert tool hotkey
-        let convertHotkeyCode = convertToolHotkeyCode
-        let convertHotkeyModifiers = convertToolHotkeyModifiers
-        if convertHotkeyCode != 0 || convertHotkeyModifiers != 0 {
-            prefs.convertToolHotkey = Hotkey(
-                keyCode: convertHotkeyCode,
-                modifiers: ModifierFlags(rawValue: convertHotkeyModifiers)
-            )
-        }
-
         // Macro settings
         prefs.macroEnabled = macroEnabled
         prefs.macroInEnglishMode = macroInEnglishMode
@@ -875,32 +760,18 @@ class SharedSettings {
 
         prefs.smartSwitchEnabled = smartSwitchEnabled
 
-        // Debug
-        prefs.debugModeEnabled = debugModeEnabled
-
         // UI settings
         prefs.startAtLogin = startAtLogin
         if let style = MenuBarIconStyle(rawValue: menuBarIconStyle) {
             prefs.menuBarIconStyle = style
         }
         prefs.autoCheckForUpdates = autoCheckForUpdates
+        prefs.cursorHUDEnabled = cursorHUDEnabled
 
         // Excluded apps
         if let data = getExcludedApps(),
            let apps = try? JSONDecoder().decode([ExcludedApp].self, from: data) {
             prefs.excludedApps = apps
-        }
-
-        // Debug settings
-        prefs.debugModeEnabled = debugModeEnabled
-        prefs.openDebugOnLaunch = openDebugOnLaunch
-        let dbgHotkeyCode = debugHotkeyCode
-        let dbgHotkeyModifiers = debugHotkeyModifiers
-        if dbgHotkeyCode != 0 || dbgHotkeyModifiers != 0 {
-            prefs.debugHotkey = Hotkey(
-                keyCode: dbgHotkeyCode,
-                modifiers: ModifierFlags(rawValue: dbgHotkeyModifiers)
-            )
         }
 
         return prefs
@@ -938,12 +809,8 @@ class SharedSettings {
         inputMethod = prefs.inputMethod.rawValue
         codeTable = prefs.codeTable.rawValue
         modernStyle = prefs.modernStyle
-        spellCheckEnabled = prefs.spellCheckEnabled
 
         // Advanced settings
-        quickTelexEnabled = prefs.quickTelexEnabled
-        quickStartConsonantEnabled = prefs.quickStartConsonantEnabled
-        quickEndConsonantEnabled = prefs.quickEndConsonantEnabled
         upperCaseFirstChar = prefs.upperCaseFirstChar
         restoreIfWrongSpelling = prefs.restoreIfWrongSpelling
         instantRestoreOnWrongSpelling = prefs.instantRestoreOnWrongSpelling
@@ -953,9 +820,6 @@ class SharedSettings {
         tempOffToolbarEnabled = prefs.tempOffToolbarEnabled
         tempOffToolbarHotkeyCode = prefs.tempOffToolbarHotkey.keyCode
         tempOffToolbarHotkeyModifiers = prefs.tempOffToolbarHotkey.modifiers.rawValue
-        convertToolHotkeyCode = prefs.convertToolHotkey.keyCode
-        convertToolHotkeyModifiers = prefs.convertToolHotkey.modifiers.rawValue
-
         // Macro settings
         macroEnabled = prefs.macroEnabled
         macroInEnglishMode = prefs.macroInEnglishMode
@@ -964,14 +828,11 @@ class SharedSettings {
 
         smartSwitchEnabled = prefs.smartSwitchEnabled
 
-        // Debug
-        debugModeEnabled = prefs.debugModeEnabled
-        openDebugOnLaunch = prefs.openDebugOnLaunch
-
         // UI settings
         startAtLogin = prefs.startAtLogin
         menuBarIconStyle = prefs.menuBarIconStyle.rawValue
         autoCheckForUpdates = prefs.autoCheckForUpdates
+        cursorHUDEnabled = prefs.cursorHUDEnabled
 
         // Excluded apps
         if let data = try? JSONEncoder().encode(prefs.excludedApps) {
@@ -987,16 +848,6 @@ class SharedSettings {
         // Also notify toolbar settings changed (so toolbar can be enabled/disabled immediately)
         notifyToolbarChanged()
 
-        // Also notify convert tool hotkey changed
-        notifyConvertToolHotkeyChanged()
-
-        // Debug settings
-        debugModeEnabled = prefs.debugModeEnabled
-        debugHotkeyCode = prefs.debugHotkey.keyCode
-        debugHotkeyModifiers = prefs.debugHotkey.modifiers.rawValue
-
-        // Also notify debug settings changed
-        notifyDebugSettingsChanged()
     }
 }
 
@@ -1012,10 +863,4 @@ extension Notification.Name {
     /// Posted when temp off toolbar settings change (enabled/disabled or hotkey)
     static let tempOffToolbarSettingsDidChange = Notification.Name("Aurakey.tempOffToolbarSettingsDidChange")
 
-    /// Posted when convert tool hotkey changes
-    static let convertToolHotkeyDidChange = Notification.Name("Aurakey.convertToolHotkeyDidChange")
-
-    /// Posted when debug settings change
-    static let debugSettingsDidChange = Notification.Name("Aurakey.debugSettingsDidChange")
-    
 }

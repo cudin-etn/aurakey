@@ -29,8 +29,7 @@ struct AdvancedSection: View {
     @State private var userDictAlertIsError = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 20) {
                 SettingsGroup(title: "Chính tả & Viết hoa", color: .purple) {
                     VStack(alignment: .leading, spacing: 10) {
                         Toggle("Tự động viết hoa chữ đầu câu", isOn: $viewModel.preferences.upperCaseFirstChar)
@@ -38,118 +37,24 @@ struct AdvancedSection: View {
                         // Custom consonants toggle + chip editor
                         CustomConsonantChipEditor(isEnabled: $viewModel.preferences.customConsonantEnabled, customConsonants: $viewModel.preferences.customConsonants)
 
-                        Toggle("Kiểm tra chính tả và tự động khôi phục (Thử nghiệm)", isOn: $viewModel.preferences.spellCheckEnabled)
-                            .onChange(of: viewModel.preferences.spellCheckEnabled) { newValue in
-                                if newValue {
-                                    // Auto-load dictionary if available
-                                    VNDictionaryManager.shared.loadIfAvailable()
-                                } else {
-                                    // Cascade disable: turn off child settings when spell check is disabled
-                                    viewModel.preferences.restoreIfWrongSpelling = false
+                        Toggle("Khôi phục nếu từ không hợp lệ", isOn: $viewModel.preferences.restoreIfWrongSpelling)
+                            .padding(.leading, 20)
+                            .onChange(of: viewModel.preferences.restoreIfWrongSpelling) { newValue in
+                                if !newValue {
                                     viewModel.preferences.instantRestoreOnWrongSpelling = false
-                                    
-                                    // Clear dictionary cache to free memory (~2-5MB)
-                                    VNDictionaryManager.shared.clearCache()
                                 }
                             }
-                        
-                        Text("Cần xác nhận và tải về bộ từ điển Tiếng Việt bên dưới")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .padding(.leading, 20)
-                        
-                        // Sub-options for spell check (only visible when spell check is enabled)
-                        if viewModel.preferences.spellCheckEnabled {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Toggle("Khôi phục nếu sai chính tả", isOn: $viewModel.preferences.restoreIfWrongSpelling)
-                                    .padding(.leading, 20)
-                                    .onChange(of: viewModel.preferences.restoreIfWrongSpelling) { newValue in
-                                        if !newValue {
-                                            // Cascade disable: turn off instant restore when restore is disabled
-                                            viewModel.preferences.instantRestoreOnWrongSpelling = false
-                                        }
-                                    }
-                                
-                                if viewModel.preferences.restoreIfWrongSpelling {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Toggle("Khôi phục ngay lập tức", isOn: $viewModel.preferences.instantRestoreOnWrongSpelling)
-                                            .padding(.leading, 40)
-                                        
-                                        Text("Nếu bật: Restore ngay khi thêm dấu không hợp lệ, có thể sẽ gây lỗi từ Tiếng Việt hợp lệ không mong muốn. Nếu tắt: Chờ nhấn Space để restore sẽ chính xác hơn.")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                            .padding(.leading, 40)
-                                    }
-                                }
-                            }
-                        }                    
-                        
-                        // Dictionary options (only shown when spell check is enabled)
-                        if viewModel.preferences.spellCheckEnabled {
-                            Divider()
-                            
-                            VStack(alignment: .leading, spacing: 10) {
-                                // Auto-select dictionary based on modernStyle
-                                HStack(spacing: 4) {
-                                    Image(systemName: "info.circle")
-                                        .foregroundColor(.blue)
-                                    Text("Bộ từ điển: \(viewModel.preferences.modernStyle ? "Dấu mới (xoà)" : "Dấu cũ (xóa)")")
-                                        .font(.caption)
-                                    Text("- tự động theo kiểu gõ")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                                
-                                Divider()
-                                
-                                // Dictionary status
-                                dictionaryStatusView
-                                
-                                // Success/Error messages (for both download and reload)
-                                if let error = downloadError {
-                                    HStack {
-                                        Image(systemName: "exclamationmark.triangle.fill")
-                                            .foregroundColor(.orange)
-                                        Text(error)
-                                            .font(.caption)
-                                            .foregroundColor(.orange)
-                                    }
-                                }
 
-                                if showDownloadSuccess {
-                                    HStack {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundColor(.green)
-                                        Text("Tải từ điển thành công!")
-                                            .font(.caption)
-                                            .foregroundColor(.green)
-                                    }
-                                }
-                                
-                                // Download section (only when not loaded)
-                                if !isDictionaryLoaded {
-                                    downloadSection
-                                }
-                                
-                                // License info (always visible)
-                                dictionaryInfoView
-                                
-                                // Info text
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Từ điển chứa các từ đơn tiếng Việt.")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    Text("Aurakey sẽ ưu tiên từ điển để xác định chính tả Tiếng Việt và tự động hoàn tác nếu từ đang gõ không tồn tại trong từ điển này. Bạn cũng có thể thêm các \"Từ điển cá nhân\" để bỏ qua việc kiểm tra chính tả đối với các từ mà bạn coi là hợp lệ.")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                                
-                                Divider()
-                                
-                                // User Dictionary section
-                                userDictionarySection
+                        if viewModel.preferences.restoreIfWrongSpelling {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Toggle("Khôi phục ngay lập tức", isOn: $viewModel.preferences.instantRestoreOnWrongSpelling)
+                                    .padding(.leading, 40)
+
+                                Text("Nếu bật: restore ngay khi thêm dấu không hợp lệ, có thể gây hoàn tác sớm trong một số trường hợp.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .padding(.leading, 40)
                             }
-                            .padding(.leading, 20)
                         }
                     }
                 }
@@ -206,62 +111,7 @@ struct AdvancedSection: View {
                         }
                     }
                 }
-                
-
-
-                
-                // Window Title Rules
-                SettingsGroup(title: "Hiệu chỉnh Aurakey Engine theo ứng dụng", color: .purple) {
-                    if #available(macOS 13.0, *) {
-                        WindowTitleRulesView()
-                    } else {
-                        Text("Tính năng này yêu cầu macOS 13.0 trở lên")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                SettingsGroup(title: "Khởi động", color: .purple) {
-                    Toggle("Khởi động cùng hệ thống", isOn: $viewModel.preferences.startAtLogin)
-                }
-                
-                SettingsGroup(title: "Debug", color: .purple) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Toggle("Bật chế độ Debug", isOn: $viewModel.preferences.debugModeEnabled)
-                        
-                        Text("Hiển thị cửa sổ debug để theo dõi hoạt động của bộ gõ")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        Divider()
-                        
-                        // Hotkey setting for debug
-                        HStack {
-                            Text("Phím tắt bật/tắt Debug:")
-                                .font(.caption)
-                            Spacer()
-                            HotkeyRecorderView(hotkey: $viewModel.preferences.debugHotkey, minimumModifiers: 2)
-                                .frame(width: 150)
-                        }
-                        
-                        Text("Nhấn phím tắt này để nhanh chóng bật/tắt cửa sổ Debug từ bất kỳ ứng dụng nào")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        Divider()
-                        
-                        // Open debug on launch option
-                        Toggle("Tự động mở Debug khi khởi động app", isOn: $viewModel.preferences.openDebugOnLaunch)
-                        
-                        Text("Khi bật, cửa sổ Debug sẽ tự động hiển thị mỗi khi khởi động Aurakey")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
-        }
     }
     
     // MARK: - Dictionary Status View (moved from SpellCheckSection)

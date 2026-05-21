@@ -48,8 +48,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var eventTapManager: EventTapManager?
     private var keyboardHandler: KeyboardEventHandler?
     private var settingsWindowController: SettingsWindowController?
-    private var readWordHotKeyMonitor: Any?
-    private var readWordGlobalHotKeyMonitor: Any?
     private var appSwitchObserver: NSObjectProtocol?
     private var mouseClickMonitor: Any?
     private var permissionAlertShown = false
@@ -100,7 +98,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return keyboardHandler?.getMacroManager()
     }
 
-    /// Log message to debug window (for external access)
+    /// Log message hook (reserved for diagnostics)
     func getSparkleUpdater() -> SPUUpdater? {
         return updaterController?.updater
     }
@@ -171,9 +169,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Setup global hotkey
         setupGlobalHotkey()
-        
-        // Setup read word hotkey
-        setupReadWordHotkey()
 
         // Setup app switch observer
         setupAppSwitchObserver()
@@ -187,17 +182,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Setup temp off toolbar (also handles focus change monitoring for injection detection)
         setupTempOffToolbar()
 
-        // Setup convert tool hotkey
-        setupConvertToolHotkey()
-
-        // Setup debug hotkey
-        setupDebugHotkey()
-
         // Setup Sparkle auto-update
         setupSparkleUpdater()
 
         // Load Vietnamese dictionary if spell checking is enabled
-        setupSpellCheckDictionary()
 
         // Initialize AudioManager to handle wake-from-sleep audio issues
         // This must be done at startup to register for system sleep/wake notifications
@@ -208,14 +196,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         eventTapManager?.stop()
 
-        // Remove read word hotkey monitors
-        if let monitor = readWordHotKeyMonitor {
-            NSEvent.removeMonitor(monitor)
-        }
-        if let monitor = readWordGlobalHotKeyMonitor {
-            NSEvent.removeMonitor(monitor)
-        }
-        
         // Remove switch Aurakey hotkey monitors
         if let monitor = switchAurakeyHotkeyMonitor {
             NSEvent.removeMonitor(monitor)
@@ -352,10 +332,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             inputMethod: preferences.inputMethod,
             codeTable: preferences.codeTable,
             modernStyle: preferences.modernStyle,
-            spellCheckEnabled: preferences.spellCheckEnabled,
-            quickTelexEnabled: preferences.quickTelexEnabled,
-            quickStartConsonantEnabled: preferences.quickStartConsonantEnabled,
-            quickEndConsonantEnabled: preferences.quickEndConsonantEnabled,
             upperCaseFirstChar: preferences.upperCaseFirstChar,
             restoreIfWrongSpelling: preferences.restoreIfWrongSpelling,
             customConsonants: preferences.customConsonantEnabled ? preferences.customConsonants : "",
@@ -396,14 +372,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     }
 
-    
-    // MARK: - Debug Window Management
-
-    /// Toggle debug window from menu bar (open if closed, close if open)
-
-    
-    /// Handle when debug window is closed via Close button on title bar
-    
     // MARK: - Permissions
     
     private func checkAndRequestPermissions() {
@@ -524,50 +492,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     
-    private func setupReadWordHotkey() {
-        // Remove existing monitors
-        if let monitor = readWordHotKeyMonitor {
-            NSEvent.removeMonitor(monitor)
-        }
-        if let monitor = readWordGlobalHotKeyMonitor {
-            NSEvent.removeMonitor(monitor)
-        }
-        
-        // Shortcut: Cmd+Shift+R for "Read Word Before Cursor" (changed from Z to avoid Redo conflict)
-        let keyCode: UInt16 = 0x0F // R key
-        
-        // Helper to check modifiers (only Cmd+Shift, no other modifiers)
-        let checkModifiers: (NSEvent) -> Bool = { event in
-            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            return flags.contains(.command) && flags.contains(.shift) && 
-                   !flags.contains(.option) && !flags.contains(.control)
-        }
-        
-        // Global monitor - catches hotkey in ALL apps
-        readWordGlobalHotKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if event.keyCode == keyCode && checkModifiers(event) {
-                DispatchQueue.main.async {
-                    self?.keyboardHandler?.engine.debugReadWordBeforeCursor()
-                    
-                }
-            }
-        }
-        
-        // Local monitor - catches hotkey when Aurakey app is focused
-        readWordHotKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if event.keyCode == keyCode && checkModifiers(event) {
-                DispatchQueue.main.async {
-                    self?.keyboardHandler?.engine.debugReadWordBeforeCursor()
-                    
-                }
-                // Return nil to consume the event
-                return nil
-            }
-            return event
-        }
-        
-    }
-    
     // State tracking for modifier-only switch Aurakey hotkey
     private var switchAurakeyModifierState: (targetReached: Bool, hasTriggered: Bool) = (false, false)
     private var switchAurakeyFlagsMonitor: Any?
@@ -623,7 +547,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 guard let self = self else { return }
                 let newState = !(self.statusBarManager?.viewModel.isVietnameseEnabled ?? true)
                 self.keyboardHandler?.setVietnamese(newState)
-                self.statusBarManager?.viewModel.isVietnameseEnabled = newState
+                self.statusBarManager?.viewModel.applyVietnameseState(newState, showCursorHUD: true)
             }
         }
         
@@ -855,7 +779,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // If should switch, restore the saved language
         if result.shouldSwitch {
             let newEnabled = result.newLanguage == 1
-            statusBarManager?.viewModel.isVietnameseEnabled = newEnabled
+            statusBarManager?.viewModel.applyVietnameseState(newEnabled, showCursorHUD: true)
             handler.setVietnamese(newEnabled)
 
         }
@@ -936,7 +860,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if result.shouldSwitch {
             // Switch language
             let newEnabled = result.newLanguage == 1
-            statusBarManager?.viewModel.isVietnameseEnabled = newEnabled
+            statusBarManager?.viewModel.applyVietnameseState(newEnabled, showCursorHUD: true)
             handler.setVietnamese(newEnabled)
             
         } else {
@@ -1008,13 +932,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if shouldEnable {
             // Enable Vietnamese mode
             if !currentlyEnabled {
-                self.statusBarManager?.viewModel.isVietnameseEnabled = true
+                self.statusBarManager?.viewModel.applyVietnameseState(true, showCursorHUD: true)
                 self.keyboardHandler?.setVietnamese(true)
             }
         } else {
             // Disable Vietnamese mode
             if currentlyEnabled {
-                self.statusBarManager?.viewModel.isVietnameseEnabled = false
+                self.statusBarManager?.viewModel.applyVietnameseState(false, showCursorHUD: true)
                 self.keyboardHandler?.setVietnamese(false)
             }
         }
@@ -1082,30 +1006,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     updater.checkForUpdatesInBackground()
                 } else {
                 }
-            }
-        } else {
-        }
-    }
-
-    // MARK: - Spell Check Dictionary Setup
-
-    private func setupSpellCheckDictionary() {
-        let preferences = SharedSettings.shared.loadPreferences()
-
-        guard preferences.spellCheckEnabled else {
-            return
-        }
-
-        let style: VNDictionaryManager.DictionaryStyle = preferences.modernStyle ? .dauMoi : .dauCu
-
-        // Check if dictionary is already available locally
-        if VNDictionaryManager.shared.isDictionaryAvailable(style: style) {
-            // Load from local storage
-            do {
-                try VNDictionaryManager.shared.loadDictionary(style: style)
-                let stats = VNDictionaryManager.shared.getDictionaryStats()
-                let count = stats[style.rawValue] ?? 0
-            } catch {
             }
         } else {
         }
@@ -1515,72 +1415,5 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         TempOffToolbarController.shared.toggle()
     }
 
-    // MARK: - Convert Tool Hotkey
-
-    private func setupConvertToolHotkey() {
-        // Setup notification observer for hotkey changes
-        NotificationCenter.default.addObserver(
-            forName: .convertToolHotkeyDidChange,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.updateConvertToolHotkey()
-        }
-
-        // Initial setup
-        updateConvertToolHotkey()
-    }
-
-    private func updateConvertToolHotkey() {
-        let preferences = SharedSettings.shared.loadPreferences()
-        let hotkey = preferences.convertToolHotkey
-
-        // If no keycode, disable hotkey
-        guard hotkey.keyCode != 0 else {
-            eventTapManager?.convertToolHotkey = nil
-            eventTapManager?.onConvertToolHotkey = nil
-            return
-        }
-
-        // Configure EventTapManager to handle convert tool hotkey
-        eventTapManager?.convertToolHotkey = hotkey
-        eventTapManager?.onConvertToolHotkey = { [weak self] in
-            self?.openConvertTool()
-        }
-
-    }
-
-    // MARK: - Debug Hotkey
-
-    private func setupDebugHotkey() {
-        // Setup notification observer for hotkey/settings changes
-        NotificationCenter.default.addObserver(
-            forName: .debugSettingsDidChange,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.updateDebugHotkey()
-        }
-
-        // Initial setup
-        updateDebugHotkey()
-    }
-
-    private func updateDebugHotkey() {
-        let preferences = SharedSettings.shared.loadPreferences()
-        let hotkey = preferences.debugHotkey
-
-        // If no keycode, disable hotkey
-        guard hotkey.keyCode != 0 else {
-            eventTapManager?.debugHotkey = nil
-            eventTapManager?.onDebugHotkey = nil
-            return
-        }
-
-        // Configure EventTapManager to handle debug hotkey
-        eventTapManager?.debugHotkey = hotkey
-        eventTapManager?.onDebugHotkey = { }
-
-    }
 }
 

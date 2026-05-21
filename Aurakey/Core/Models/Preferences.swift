@@ -33,12 +33,8 @@ struct Preferences: Codable {
     var inputMethod: InputMethod = .telex
     var codeTable: CodeTable = .unicode
     var modernStyle: Bool = false
-    var spellCheckEnabled: Bool = false
     
     // Advanced features
-    var quickTelexEnabled: Bool = true           // cc→ch, gg→gi, etc.
-    var quickStartConsonantEnabled: Bool = false // f→ph, j→gi, w→qu
-    var quickEndConsonantEnabled: Bool = false   // g→ng, h→nh, k→ch
     var upperCaseFirstChar: Bool = false         // Auto capitalize first letter
     var restoreIfWrongSpelling: Bool = true      // Restore if wrong spelling
     var instantRestoreOnWrongSpelling: Bool = false // Restore immediately when wrong spelling detected
@@ -56,8 +52,6 @@ struct Preferences: Codable {
 
     var tempOffToolbarEnabled: Bool = false      // Show floating toolbar for temp off controls
     var tempOffToolbarHotkey: Hotkey = Hotkey(keyCode: 0x11, modifiers: [.command, .option])  // Default: Cmd+Option+T
-    var convertToolHotkey: Hotkey = Hotkey(keyCode: 0, modifiers: [])  // Default: disabled (no hotkey)
-
     // Macro settings
     var macroEnabled: Bool = false               // Enable text shortcuts
     var macroInEnglishMode: Bool = false         // Use macro in English mode
@@ -67,17 +61,11 @@ struct Preferences: Codable {
     // Smart switch settings
     var smartSwitchEnabled: Bool = true         // Remember language per app
 
-    
-    // Debug settings
-    var debugModeEnabled: Bool = false           // Show debug window (even in production)
-    var debugHotkey: Hotkey = Hotkey(keyCode: 0x02, modifiers: [.command, .option])  // Default: Cmd+Option+D
-    var openDebugOnLaunch: Bool = false          // Open debug window when app starts
-    
-    
     // UI settings
     var startAtLogin: Bool = false
     var menuBarIconStyle: MenuBarIconStyle = .aura
     var autoCheckForUpdates: Bool = true
+    var cursorHUDEnabled: Bool = true
     
     // Excluded apps - apps where Vietnamese input is disabled
     var excludedApps: [ExcludedApp] = []

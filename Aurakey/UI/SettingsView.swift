@@ -1,24 +1,13 @@
-//
-//  SettingsView.swift
-//  Aurakey
-//
-//  Unified Settings View with custom premium sidebar
-//  Supports macOS 13+ (uses same sidebar as PreferencesView)
-//  Uses shared components from SettingsSections/
-//
-
 import SwiftUI
-
-// MARK: - Settings Section
 
 enum SettingsSection: String, CaseIterable, Identifiable {
     case general = "Cơ bản"
-    case quickTyping = "Gõ nhanh"
     case advanced = "Nâng cao"
+    case windowTitleRules = "Hiệu chỉnh app"
     case macro = "Macro"
     case convertTool = "Chuyển đổi"
     case excludedApps = "Ứng dụng"
-    case inputSources = "Input Sources"
+    case inputSources = "Nguồn nhập"
     case appearance = "Giao diện"
     case backupRestore = "Sao lưu"
     case about = "Giới thiệu"
@@ -28,8 +17,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .general: return "gearshape"
-        case .quickTyping: return "keyboard"
         case .advanced: return "slider.horizontal.3"
+        case .windowTitleRules: return "gearshape.2"
         case .inputSources: return "globe"
         case .excludedApps: return "app.badge.checkmark"
         case .macro: return "text.badge.plus"
@@ -39,14 +28,14 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .about: return "info.circle"
         }
     }
-    
+
     var iconColor: Color {
         switch self {
-        case .general: return .blue
-        case .quickTyping: return .orange
+        case .general: return AurakeyTheme.accent
         case .advanced: return .purple
+        case .windowTitleRules: return .purple
         case .macro: return .pink
-        case .convertTool: return Color(red: 0, green: 0.75, blue: 0.78)
+        case .convertTool: return AurakeyTheme.accentWarm
         case .excludedApps: return .red
         case .inputSources: return .green
         case .appearance: return .indigo
@@ -54,18 +43,22 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .about: return .mint
         }
     }
-    
-    var groupLabel: String? {
+
+    var description: String {
         switch self {
-        case .general: return "THIẾT LẬP"
-        case .macro: return "CÔNG CỤ"
-        case .inputSources: return "HỆ THỐNG"
-        default: return nil
+        case .general: return "Cấu hình phím tắt, kiểu gõ và bảng mã"
+        case .advanced: return "Chính tả, từ điển và công cụ điều khiển"
+        case .windowTitleRules: return "Tuỳ chỉnh engine theo từng ứng dụng"
+        case .macro: return "Tạo và quản lý từ viết tắt"
+        case .convertTool: return "Chuyển đổi chữ hoa/thường và bảng mã"
+        case .excludedApps: return "Quản lý Smart Switch và ứng dụng loại trừ"
+        case .inputSources: return "Cấu hình theo Input Source"
+        case .appearance: return "Giao diện, biểu tượng và khởi động"
+        case .backupRestore: return "Sao lưu, khôi phục và đặt lại"
+        case .about: return "Thông tin ứng dụng và liên kết"
         }
     }
 }
-
-// MARK: - Main Settings View
 
 struct SettingsView: View {
     @StateObject private var viewModel = PreferencesViewModel()
@@ -80,90 +73,17 @@ struct SettingsView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            // Custom premium sidebar (same style as PreferencesView)
-            VStack(spacing: 0) {
-                // App branding
-                HStack(spacing: 8) {
-                    if let logo = NSImage(named: "AurakeyLogo") {
-                        Image(nsImage: logo)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 24, height: 24)
-                    }
-                    Text("Aurakey")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundColor(.primary)
-                    Spacer()
-                }
-                .padding(.horizontal, 14)
-                .padding(.top, 16)
-                .padding(.bottom, 12)
-                
-                // Sections
-                ScrollView {
-                    VStack(spacing: 1) {
-                        ForEach(SettingsSection.allCases) { section in
-                            if let group = section.groupLabel {
-                                Text(group)
-                                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                                    .foregroundColor(.secondary.opacity(0.5))
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.horizontal, 14)
-                                    .padding(.top, section == .general ? 0 : 14)
-                                    .padding(.bottom, 4)
-                            }
-                            
-                            SettingsSidebarButton(
-                                title: section.rawValue,
-                                icon: section.icon,
-                                iconColor: section.iconColor,
-                                isSelected: selectedSection == section
-                            ) {
-                                withAnimation(.easeInOut(duration: 0.15)) {
-                                    selectedSection = section
-                                }
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 6)
-                    .padding(.bottom, 12)
-                }
-            }
-            .frame(width: 170)
-            .background(Color(NSColor.windowBackgroundColor).opacity(0.6))
+            sidebar
+                .frame(width: 220)
 
-            Rectangle()
-                .fill(Color.primary.opacity(0.06))
-                .frame(width: 1)
+            Divider()
+                .opacity(0)
 
-            // Content
-            Group {
-                switch selectedSection {
-                case .general:
-                    GeneralSection(viewModel: viewModel)
-                case .quickTyping:
-                    QuickTypingSection(viewModel: viewModel)
-                case .advanced:
-                    AdvancedSection(viewModel: viewModel)
-                case .inputSources:
-                    InputSourcesSection(preferencesViewModel: viewModel)
-                case .excludedApps:
-                    ExcludedAppsSection(viewModel: viewModel)
-                case .macro:
-                    MacroSection(prefsViewModel: viewModel)
-                case .convertTool:
-                    ConvertToolSection()
-                case .appearance:
-                    AppearanceSection(viewModel: viewModel)
-                case .backupRestore:
-                    BackupRestoreSection()
-                case .about:
-                    AboutSection()
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(minWidth: 780, minHeight: 580)
+        .frame(minWidth: 800, minHeight: 560)
+        .background(AurakeyTheme.panelBackground)
         .onReceive(viewModel.objectWillChange) { _ in
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 viewModel.save()
@@ -171,60 +91,97 @@ struct SettingsView: View {
             }
         }
     }
-}
 
-// MARK: - Sidebar Button (shared style)
+    private var sidebar: some View {
+        VStack(spacing: 0) {
+            headerSection
 
-private struct SettingsSidebarButton: View {
-    let title: String
-    let icon: String
-    let iconColor: Color
-    let isSelected: Bool
-    let action: () -> Void
-    
-    @State private var isHovered = false
+            Divider()
 
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 10) {
-                RoundedRectangle(cornerRadius: 1.5)
-                    .fill(isSelected ? iconColor : Color.clear)
-                    .frame(width: 3, height: 16)
-                
-                Image(systemName: icon)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(isSelected ? iconColor : (isHovered ? iconColor.opacity(0.8) : iconColor.opacity(0.6)))
-                    .frame(width: 18)
-
-                Text(title)
-                    .font(.system(size: 12.5, weight: isSelected ? .semibold : .regular, design: .rounded))
-                    .foregroundColor(isSelected ? .primary : .primary.opacity(0.75))
-
-                Spacer()
+            ScrollView {
+                VStack(spacing: 2) {
+                    ForEach(SettingsSection.allCases) { section in
+                        SettingsSidebarButton(
+                            title: section.rawValue,
+                            icon: section.icon,
+                            iconColor: section.iconColor,
+                            isSelected: selectedSection == section
+                        ) {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                selectedSection = section
+                            }
+                        }
+                        .padding(.horizontal, 10)
+                    }
+                }
+                .padding(.vertical, 8)
             }
-            .padding(.vertical, 6)
-            .padding(.trailing, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 7)
-                    .fill(
-                        isSelected
-                            ? iconColor.opacity(0.12)
-                            : (isHovered ? iconColor.opacity(0.06) : Color.clear)
-                    )
-            )
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.15)) {
-                isHovered = hovering
+        .background(AurakeyTheme.sidebarBackground)
+    }
+
+    private var headerSection: some View {
+        HStack(spacing: 10) {
+            if let logo = NSImage(named: "AurakeyLogo") {
+                Image(nsImage: logo)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 22, height: 22)
             }
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Aurakey")
+                    .font(.system(size: 14, weight: .bold))
+                Text("Cài đặt")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 14)
+        .padding(.bottom, 10)
+    }
+
+    private var content: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(selectedSection.rawValue)
+                        .font(.system(size: 22, weight: .bold))
+                    Text(selectedSection.description)
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+
+                Group {
+                    switch selectedSection {
+                    case .general:
+                        GeneralSection(viewModel: viewModel)
+                    case .advanced:
+                        AdvancedSection(viewModel: viewModel)
+                    case .windowTitleRules:
+                        WindowTitleRulesSection()
+                    case .inputSources:
+                        InputSourcesSection(preferencesViewModel: viewModel)
+                    case .excludedApps:
+                        ExcludedAppsSection(viewModel: viewModel)
+                    case .macro:
+                        MacroSection(prefsViewModel: viewModel)
+                    case .convertTool:
+                        ConvertToolSection()
+                    case .appearance:
+                        AppearanceSection(viewModel: viewModel)
+                    case .backupRestore:
+                        BackupRestoreSection()
+                    case .about:
+                        AboutSection()
+                    }
+                }
+            }
+            .padding(32)
         }
     }
 }
 
-// MARK: - Preview
-
-#Preview {
-    SettingsView()
-}

@@ -43,17 +43,10 @@ class EventTapManager {
     var onToolbarHotkey: (() -> Void)?
 
     // Convert tool hotkey configuration
-    var convertToolHotkey: Hotkey?
-    var onConvertToolHotkey: (() -> Void)?
-
     // Undo typing hotkey configuration
     // Returns true if event should be consumed (undo was performed)
     var undoTypingHotkey: Hotkey?
     var onUndoTypingHotkey: (() -> Bool)?
-    
-    // Debug hotkey configuration
-    var debugHotkey: Hotkey?
-    var onDebugHotkey: (() -> Void)?
     
     // Modifier-only hotkey tracking (for toggle hotkey)
     private var modifierOnlyState: ModifierOnlyState = ModifierOnlyState()
@@ -378,38 +371,6 @@ class EventTapManager {
                 // Call toolbar callback on main thread
                 DispatchQueue.main.async { [weak self] in
                     self?.onToolbarHotkey?()
-                }
-                // Consume the event completely - don't pass to other apps
-                return nil
-            }
-        }
-
-        // Check for convert tool hotkey
-        // Skip if user is recording a new hotkey (so they can re-record the same hotkey)
-        if let hotkey = convertToolHotkey, type == .keyDown, !isHotkeyRecording {
-            let eventModifiers = ModifierFlags(from: event.flags)
-            if event.keyCode == hotkey.keyCode && eventModifiers == hotkey.modifiers {
-                verboseDebug("  → CONVERT TOOL HOTKEY DETECTED - consuming event")
-                // Call convert tool callback on main thread
-                DispatchQueue.main.async { [weak self] in
-                    self?.onConvertToolHotkey?()
-                }
-                // Consume the event completely - don't pass to other apps
-                return nil
-            }
-        }
-
-        // Check for debug hotkey
-        // Skip if user is recording a new hotkey
-        if let hotkey = debugHotkey, type == .keyDown, !isHotkeyRecording {
-            let eventModifiers = ModifierFlags(from: event.flags)
-            // Compare only relevant modifiers (ignore CapsLock etc.)
-            let relevantModifiers = eventModifiers.intersection([.control, .shift, .option, .command])
-            if event.keyCode == hotkey.keyCode && relevantModifiers == hotkey.modifiers {
-                verboseDebug("  → DEBUG HOTKEY DETECTED - consuming event (keyCode=\(event.keyCode), mods=\(relevantModifiers.rawValue))")
-                // Call debug callback on main thread
-                DispatchQueue.main.async { [weak self] in
-                    self?.onDebugHotkey?()
                 }
                 // Consume the event completely - don't pass to other apps
                 return nil
